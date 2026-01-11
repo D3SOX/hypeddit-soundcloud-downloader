@@ -636,7 +636,7 @@ if (downloadFilename) {
 			console.log(`✓ Removed ${inputPath}`);
 		}
 	}
-	// otherwise if it is a MP3, we retag it with the correct metadata
+	// otherwise if it is an MP3, we retag it with the correct metadata
 	else if (filename.toLowerCase().endsWith('.mp3')) {
 		const args: string[] = [
 			'-i',
