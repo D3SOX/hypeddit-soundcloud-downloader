@@ -163,9 +163,7 @@ const handleInstagramSlide = async (page: Page) => {
 	// loop until there are no more buttons with the undone class
 	while (true) {
 		// try to find a button that's not done
-		const button = await page.$(
-			'#instagram_status .hype-btn-instagram.undone',
-		);
+		const button = await page.$('#instagram_status .hype-btn-instagram.undone');
 
 		if (!button) {
 			break;
