@@ -408,9 +408,11 @@ const {
 	title,
 	artwork_url,
 	genre,
+	publisher_metadata: { artist: publisherArtist, album_title: publisherAlbum },
 	user: { full_name, username },
 } = track;
-const artist = full_name || username;
+const artist = publisherArtist || full_name || username;
+const album = publisherAlbum || '';
 const artworkUrl = artwork_url.replace('large', 'original');
 const artwork = await fetch(artworkUrl).then((res) => res.arrayBuffer());
 
@@ -531,6 +533,7 @@ if (cleanupSoundcloudConfirm) {
 console.log('Metadata', {
 	title,
 	artist,
+	album,
 	genre,
 	downloadFilename,
 });
@@ -556,6 +559,7 @@ const { correctedAlbum } = await prompts({
 	type: 'text',
 	name: 'correctedAlbum',
 	message: 'Check and correct the album',
+	initial: album,
 });
 const { correctedGenre } = await prompts({
 	type: 'text',
