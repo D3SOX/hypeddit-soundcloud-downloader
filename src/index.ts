@@ -638,6 +638,11 @@ if (downloadFilename) {
 	}
 	// otherwise if it is an MP3, we retag it with the correct metadata
 	else if (filename.toLowerCase().endsWith('.mp3')) {
+		const outputPath = join(
+			'./downloads',
+			filename.replace(/\.mp3$/i, '_retagged.mp3'),
+		);
+
 		const args: string[] = [
 			'-i',
 			inputPath,
@@ -674,10 +679,14 @@ if (downloadFilename) {
 			args.push('-metadata', `genre=${correctedGenre.trim()}`);
 		}
 
-		args.push('-y', inputPath);
+		args.push('-y', outputPath);
 
 		console.log('Retagging MP3...');
 		await execa(ffmpegBin, args);
+
+		// replace the original file with the retagged one
+		await Bun.write(inputPath, Bun.file(outputPath));
+		await Bun.file(outputPath).unlink();
 		console.log(`✓ Retagged ${inputPath}`);
 	} else {
 		console.warn(
