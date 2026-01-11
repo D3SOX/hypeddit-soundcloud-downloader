@@ -16,8 +16,8 @@ A simple tool that automates downloading audio from Hypeddit posts and enriches 
 
 - [**Bun**](https://bun.sh) - JavaScript runtime and package manager
 - [**ffmpeg**](https://ffmpeg.org) - Must be installed and available in your `PATH`
-- **SoundCloud account** - It is recommended to create a throwaway account for this because most Hypeddit downloads require reposts and likes which you might not want to do with your main account
-- **Spotify account** (optional) - Required when a Hypeddit post has an unskippable Spotify gate
+- **SoundCloud account** - It is recommended to create a throwaway account for this because this might get your account banned. Also most Hypeddit downloads require reposts and likes which you might not want to do with your main account
+- **Spotify account** (optional) - Required when a Hypeddit post has an unskippable Spotify gate. I also recommend creating a throwaway account as some Hypeddit downloads require saving playlists/songs to your library which you might not want on your main account.
 
 ## Installation
 
