@@ -408,8 +408,9 @@ const {
 	title,
 	artwork_url,
 	genre,
-	user: { full_name: artist },
+	user: { full_name, username },
 } = track;
+const artist = full_name || username;
 const artworkUrl = artwork_url.replace('large', 'original');
 const artwork = await fetch(artworkUrl).then((res) => res.arrayBuffer());
 
