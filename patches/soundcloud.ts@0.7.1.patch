@@ -1,0 +1,29 @@
+diff --git a/node_modules/soundcloud.ts/.bun-tag-e376dd500e5f9016 b/.bun-tag-e376dd500e5f9016
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/dist/API.d.ts b/dist/API.d.ts
+index fd4b0fb385314a1bce07bf40f821990206c9b4ec..11202bd3ccb9253715f4fb42f066a405cd7d3b56 100644
+--- a/dist/API.d.ts
++++ b/dist/API.d.ts
+@@ -15,6 +15,9 @@ export declare class API {
+     getV2: (endpoint: string, params?: {
+         [key: string]: any;
+     }) => Promise<any>;
++    deleteV2: (endpoint: string, params?: {
++        [key: string]: any;
++    }) => Promise<any>;
+     getWebsite: (endpoint: string, params?: {
+         [key: string]: any;
+     }) => Promise<any>;
+diff --git a/dist/API.js b/dist/API.js
+index d92a54c425a37ce5269a129570b6d515dede7240..2625c9486eeb9f028bf0aea415898e7d4c4295bd 100644
+--- a/dist/API.js
++++ b/dist/API.js
+@@ -59,6 +59,7 @@ var API = /** @class */ (function () {
+         this.getWebsite = function (endpoint, params) { return _this.getRequest(webURL, endpoint, params); };
+         this.getURL = function (URI, params) { return _this.fetchRequest(URI, "GET", params); };
+         this.post = function (endpoint, params) { return _this.fetchRequest("".concat(apiURL, "/").concat(endpoint), "POST", params); };
++        this.deleteV2 = function (endpoint, params) { return _this.fetchRequest("".concat(apiV2URL, "/").concat(endpoint), "DELETE", params); };
+         this.options = function (method, params) {
+             var options = {
+                 method: method,
