@@ -21,13 +21,13 @@ A simple tool that automates downloading audio from Hypeddit posts and enriches 
 
 ## Installation
 
-1. Clone this repository:
+Clone the repository
 ```bash
 git clone https://github.com/D3SOX/hypeddit-soundcloud-downloader
 cd hypeddit-soundcloud-downloader
 ```
 
-2. Install dependencies:
+Install dependencies
 ```bash
 bun install
 ```
