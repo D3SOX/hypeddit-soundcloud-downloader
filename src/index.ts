@@ -606,16 +606,16 @@ if (downloadFilename) {
 		];
 
 		if (correctedTitle) {
-			args.push('-metadata', `title=${correctedTitle}`);
+			args.push('-metadata', `title=${correctedTitle.trim()}`);
 		}
 		if (correctedArtist) {
-			args.push('-metadata', `artist=${correctedArtist}`);
+			args.push('-metadata', `artist=${correctedArtist.trim()}`);
 		}
 		if (correctedAlbum) {
-			args.push('-metadata', `album=${correctedAlbum}`);
+			args.push('-metadata', `album=${correctedAlbum.trim()}`);
 		}
 		if (correctedGenre) {
-			args.push('-metadata', `genre=${correctedGenre}`);
+			args.push('-metadata', `genre=${correctedGenre.trim()}`);
 		}
 
 		args.push('-y', outputPath);
@@ -662,16 +662,16 @@ if (downloadFilename) {
 		];
 
 		if (correctedTitle) {
-			args.push('-metadata', `title=${correctedTitle}`);
+			args.push('-metadata', `title=${correctedTitle.trim()}`);
 		}
 		if (correctedArtist) {
-			args.push('-metadata', `artist=${correctedArtist}`);
+			args.push('-metadata', `artist=${correctedArtist.trim()}`);
 		}
 		if (correctedAlbum) {
-			args.push('-metadata', `album=${correctedAlbum}`);
+			args.push('-metadata', `album=${correctedAlbum.trim()}`);
 		}
 		if (correctedGenre) {
-			args.push('-metadata', `genre=${correctedGenre}`);
+			args.push('-metadata', `genre=${correctedGenre.trim()}`);
 		}
 
 		args.push('-y', inputPath);
