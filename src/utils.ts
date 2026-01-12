@@ -1,5 +1,8 @@
 import type { CookieData } from 'puppeteer';
 import type { LocalCookieData } from './types';
+import packageJson from '../package.json' with { type: 'json' };
+
+export const REPO_URL = packageJson.repository.url;
 
 export async function timeout(ms: number) {
 	return new Promise((resolve) => setTimeout(resolve, ms));

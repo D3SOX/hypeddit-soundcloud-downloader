@@ -8,3 +8,17 @@ export interface LocalCookieData {
 	secure?: boolean;
 	sameSite?: string;
 }
+
+export interface HypedditConfig {
+	name: string;
+	email: string;
+	comment: string;
+	headless: boolean;
+}
+
+export interface Metadata {
+	title?: string;
+	artist?: string;
+	album?: string;
+	genre?: string;
+}
