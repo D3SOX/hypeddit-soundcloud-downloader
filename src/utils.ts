@@ -1,6 +1,6 @@
 import type { CookieData } from 'puppeteer';
-import type { LocalCookieData } from './types';
 import packageJson from '../package.json' with { type: 'json' };
+import type { LocalCookieData } from './types';
 
 export const REPO_URL = packageJson.repository.url;
 
