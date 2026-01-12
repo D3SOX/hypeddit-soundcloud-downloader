@@ -289,7 +289,9 @@ export class HypedditDownloader {
 	}
 
 	private async handleDownloadSlide(page: Page) {
-		const downloadButton = await page.waitForSelector('#gateDownloadButton');
+		const downloadButton = await page.waitForSelector('#gateDownloadButton', {
+			visible: true,
+		});
 		if (!downloadButton) {
 			throw new Error('Download button not found');
 		}
@@ -337,7 +339,10 @@ export class HypedditDownloader {
 		});
 
 		// click the download button and wait for download to complete
-		await Promise.all([downloadButton.click(), downloadCompletePromise]);
+		await Promise.all([
+			page.click('#gateDownloadButton'),
+			downloadCompletePromise,
+		]);
 
 		// clean up CDP session
 		await client.detach();
