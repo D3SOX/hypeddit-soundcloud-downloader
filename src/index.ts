@@ -30,17 +30,6 @@ if (!HYPEDDIT_NAME || !HYPEDDIT_EMAIL) {
 }
 
 // prompt for user input
-const { url: hypedditUrl } = await prompts({
-	type: 'text',
-	name: 'url',
-	message: 'Enter the URL of the Hypeddit post',
-	validate: (value) => {
-		if (!value || !value.startsWith('https://hypeddit.com/')) {
-			return 'A valid Hypeddit URL is required';
-		}
-		return true;
-	},
-});
 const { url: soundcloudUrl } = await prompts({
 	type: 'text',
 	name: 'url',
@@ -52,8 +41,38 @@ const { url: soundcloudUrl } = await prompts({
 		return true;
 	},
 });
-if (!hypedditUrl || !soundcloudUrl) {
-	throw new Error('Hypeddit and SoundCloud URLs are required');
+
+if (!soundcloudUrl) {
+	throw new Error('SoundCloud URL is required');
+}
+
+// fetch track metadata from SoundCloud
+const soundcloud = new Soundcloud(
+	process.env.SC_CLIENT_ID,
+	process.env.SC_OAUTH_TOKEN,
+);
+const track = await soundcloud.tracks.get(soundcloudUrl);
+
+let hypedditUrl: string;
+if (track?.purchase_url?.startsWith('https://hypeddit.com/')) {
+	hypedditUrl = track.purchase_url;
+	console.log("Found Hypeddit URL from SoundCloud track:", hypedditUrl);
+} else {
+	const { hypedditUrlInput } = await prompts({
+		type: 'text',
+		name: 'hypedditUrlInput',
+		message: 'Enter the URL of the Hypeddit post',
+		validate: (value) => {
+			if (!value || !value.startsWith('https://hypeddit.com/')) {
+				return 'A valid Hypeddit URL is required';
+			}
+			return true;
+		},
+	});
+	if (!hypedditUrlInput) {
+		throw new Error('Hypeddit URL is required');
+	}
+	hypedditUrl = hypedditUrlInput;
 }
 
 const { headless } = await prompts({
@@ -397,25 +416,6 @@ if (initializeLogins) {
 // download the audio from the Hypeddit post
 await downloadHypedditAudio(hypedditUrl);
 
-// fetch track metadata from SoundCloud
-const soundcloud = new Soundcloud(
-	process.env.SC_CLIENT_ID,
-	process.env.SC_OAUTH_TOKEN,
-);
-const track = await soundcloud.tracks.get(soundcloudUrl);
-
-const {
-	title,
-	artwork_url,
-	genre,
-	publisher_metadata: { artist: publisherArtist, album_title: publisherAlbum },
-	user: { full_name, username },
-} = track;
-const artist = publisherArtist || full_name || username;
-const album = publisherAlbum || '';
-const artworkUrl = artwork_url.replace('large', 'original');
-const artwork = await fetch(artworkUrl).then((res) => res.arrayBuffer());
-
 const unfollowAllUsersOnSoundcloud = async (meId: string) => {
 	const { collection: following } = await soundcloud.api.getV2(
 		`users/${meId}/followings`,
@@ -529,6 +529,18 @@ const { cleanupSoundcloudConfirm } = await prompts({
 if (cleanupSoundcloudConfirm) {
 	await cleanupSoundcloud();
 }
+
+const {
+	title,
+	artwork_url,
+	genre,
+	publisher_metadata: { artist: publisherArtist, album_title: publisherAlbum },
+	user: { full_name, username },
+} = track;
+const artist = publisherArtist || full_name || username;
+const album = publisherAlbum || '';
+const artworkUrl = artwork_url.replace('large', 'original');
+const artwork = await fetch(artworkUrl).then((res) => res.arrayBuffer());
 
 console.log('Metadata', {
 	title,
