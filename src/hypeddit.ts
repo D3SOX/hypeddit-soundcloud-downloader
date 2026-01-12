@@ -135,10 +135,15 @@ export class HypedditDownloader {
 			return;
 		}
 
-		// if no, we need to share a comment and connect
-		await page.type('#sc_comment_text', this.config.comment);
-		await timeout(500);
+		// not all hypeddit soundcloud gates have a comment text field, if it does not exist we can skip this
+		const scCommentText = await page.$('#sc_comment_text');
+		if (scCommentText) {
+			// if it exists, we need to enter a comment
+			await page.type('#sc_comment_text', this.config.comment);
+			await timeout(500);
+		}
 
+		// then we can click next
 		const loginButton = await page.waitForSelector('#login_to_sc');
 		if (!loginButton) {
 			throw new Error('Login button not found');
