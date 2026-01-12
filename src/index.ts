@@ -56,7 +56,7 @@ const track = await soundcloud.tracks.get(soundcloudUrl);
 let hypedditUrl: string;
 if (track?.purchase_url?.startsWith('https://hypeddit.com/')) {
 	hypedditUrl = track.purchase_url;
-	console.log("Found Hypeddit URL from SoundCloud track:", hypedditUrl);
+	console.log('Found Hypeddit URL from SoundCloud track:', hypedditUrl);
 } else {
 	const { hypedditUrlInput } = await prompts({
 		type: 'text',
