@@ -1,15 +1,10 @@
-import { lookpath } from 'find-bin';
 import prompts from 'prompts';
 import { AudioProcessor } from './audioProcessor';
 import { HypedditDownloader } from './hypeddit';
 import { SoundcloudClient } from './soundcloud';
+import { getFfmpegBin } from './utils';
 
-const ffmpegBin = await lookpath('ffmpeg');
-if (!ffmpegBin) {
-	throw new Error(
-		'ffmpeg is not installed. Please make sure it is in your PATH.',
-	);
-}
+const ffmpegBin = await getFfmpegBin();
 
 const SC_COMMENT = process.env.SC_COMMENT;
 if (!SC_COMMENT) {

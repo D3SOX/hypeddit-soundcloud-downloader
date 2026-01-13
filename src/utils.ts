@@ -1,8 +1,19 @@
+import { lookpath } from 'find-bin';
 import type { CookieData } from 'puppeteer';
 import packageJson from '../package.json' with { type: 'json' };
 import type { LocalCookieData } from './types';
 
 export const REPO_URL = packageJson.repository.url;
+
+export async function getFfmpegBin() {
+	const ffmpegBin = await lookpath('ffmpeg');
+	if (!ffmpegBin) {
+		throw new Error(
+			'ffmpeg is not installed. Please make sure it is in your PATH.',
+		);
+	}
+	return ffmpegBin;
+}
 
 export async function timeout(ms: number) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
