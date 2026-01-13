@@ -180,7 +180,12 @@ export class HypedditDownloader {
 		if (!submitApprovalButton) {
 			throw new Error('Submit approval button not found');
 		}
-		await submitApprovalButton.click();
+
+		await soundCloudWindow.click('#submit_approval');
+		// wait for window to close
+		while (!soundCloudWindow.isClosed()) {
+			await timeout(100);
+		}
 	}
 
 	private async handleInstagramSlide(page: Page) {
