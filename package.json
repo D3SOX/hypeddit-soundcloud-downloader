@@ -13,7 +13,9 @@
   },
   "license": "GPL-3.0-or-later",
   "scripts": {
-    "start": "bun run ."
+    "start": "bun run .",
+    "lint": "biome check ./src",
+    "lint:fix": "biome check --fix ./src"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.11",

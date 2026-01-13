@@ -22,4 +22,4 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run Biome lint
-        run: bunx biome check ./src
+        run: bun run lint
