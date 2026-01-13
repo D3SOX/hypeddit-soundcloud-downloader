@@ -1,3 +1,4 @@
+import { Presets, SingleBar } from 'cli-progress';
 import puppeteer, { type Browser, type Page } from 'puppeteer';
 import type { HypedditConfig } from './types';
 import { loadCookies, REPO_URL, timeout } from './utils';
@@ -300,6 +301,7 @@ export class HypedditDownloader {
 		if (!downloadButton) {
 			throw new Error('Download button not found');
 		}
+		console.log('Download button found, setting up CDP session...');
 
 		// configure CDP session to allow monitoring download events
 		const client = await page.createCDPSession();
@@ -316,6 +318,23 @@ export class HypedditDownloader {
 			downloadCompleteResolve = resolve;
 		});
 
+		// create progress bar
+		const pBar = new SingleBar(
+			{
+				format:
+					'{prefix} {bar} {percentage}% | {current_mb}/{total_mb} MB | ETA: {eta_formatted}',
+				hideCursor: true,
+			},
+			{
+				// modern preset
+				barCompleteChar: '█',
+				barIncompleteChar: '░',
+				format: Presets.shades_classic.format,
+			},
+		);
+
+		console.log('CDP session set up, waiting for download start event...');
+
 		// listen for download start event
 		client.on('Browser.downloadWillBegin', (event) => {
 			downloadGuid = event.guid;
@@ -327,27 +346,44 @@ export class HypedditDownloader {
 		client.on('Browser.downloadProgress', (event) => {
 			if (event.guid === downloadGuid && this.downloadFilename) {
 				if (event.state === 'completed') {
-					console.log('Download completed:', this.downloadFilename);
+					pBar.stop();
+					console.log('Download completed');
 					downloadCompleteResolve(this.downloadFilename);
 				} else if (event.state === 'inProgress') {
 					const { receivedBytes, totalBytes } = event;
-					const progress = Math.round((receivedBytes / totalBytes) * 100);
-					console.log(
-						'Download in progress:',
-						this.downloadFilename,
-						`${progress}%`,
-					);
+					if (pBar.isActive) {
+						pBar.update(receivedBytes, {
+							total_mb: Number((totalBytes / 1024 / 1024).toFixed(2)),
+							current_mb: Number((receivedBytes / 1024 / 1024).toFixed(2)),
+						});
+					} else {
+						pBar.start(totalBytes, receivedBytes, { prefix: 'Downloading' });
+					}
 				} else if (event.state === 'canceled') {
+					pBar.stop();
 					throw new Error('Download was canceled');
 				}
 			}
 		});
+
+		console.log('Waiting for download start event...');
+		setTimeout(async () => {
+			if (!downloadGuid) {
+				// click button again when download has not started after 10 seconds
+				console.log(
+					'Download not started after 10 seconds, clicking button again...',
+				);
+				await page.click('#gateDownloadButton');
+			}
+		}, 10_000);
 
 		// click the download button and wait for download to complete
 		await Promise.all([
 			page.click('#gateDownloadButton'),
 			downloadCompletePromise,
 		]);
+
+		console.log('Download complete, detaching CDP session...');
 
 		// clean up CDP session
 		await client.detach();
