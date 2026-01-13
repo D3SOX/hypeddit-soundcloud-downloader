@@ -42,27 +42,9 @@ if (!soundcloudUrl) {
 const soundcloudClient = new SoundcloudClient();
 const track = await soundcloudClient.getTrack(soundcloudUrl);
 
-let hypedditUrl: string | undefined;
-
 // try to find Hypeddit URL from soundcloud track
-if (track?.purchase_url?.startsWith('https://hypeddit.com/')) {
-	hypedditUrl = track.purchase_url;
-	console.log(
-		'Found Hypeddit URL from SoundCloud track purchase URL:',
-		hypedditUrl,
-	);
-} else if (track.description?.includes('https://hypeddit.com/')) {
-	const matchedUrl = track.description.match(
-		/https:\/\/hypeddit\.com\/[^\s]+/,
-	)?.[0];
-	if (matchedUrl) {
-		hypedditUrl = matchedUrl;
-		console.log(
-			'Found Hypeddit URL from SoundCloud track description:',
-			hypedditUrl,
-		);
-	}
-}
+let hypedditUrl: string | null = await soundcloudClient.getHypedditURL(track);
+
 // if no Hypeddit URL was found, prompt the user for it
 if (!hypedditUrl) {
 	const { hypedditUrlInput } = await prompts({

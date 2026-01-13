@@ -1,5 +1,5 @@
 import prompts from 'prompts';
-import Soundcloud from 'soundcloud.ts';
+import Soundcloud, { type SoundcloudTrack } from 'soundcloud.ts';
 
 export class SoundcloudClient {
 	private soundcloud: Soundcloud;
@@ -19,6 +19,31 @@ export class SoundcloudClient {
 
 	async getTrack(url: string) {
 		return await this.soundcloud.tracks.get(url);
+	}
+
+	async getHypedditURL(track: SoundcloudTrack) {
+		const { purchase_url, description } = track;
+		if (purchase_url?.startsWith('https://hypeddit.com/')) {
+			console.log(
+				'Found Hypeddit URL from SoundCloud track purchase URL:',
+				purchase_url,
+			);
+			return purchase_url;
+		}
+
+		if (description?.includes('https://hypeddit.com/')) {
+			const matchedUrl = description.match(
+				/https:\/\/hypeddit\.com\/[^\s]+/,
+			)?.[0];
+			if (matchedUrl) {
+				console.log(
+					'Found Hypeddit URL from SoundCloud track description:',
+					matchedUrl,
+				);
+				return matchedUrl;
+			}
+		}
+		return null;
 	}
 
 	async fetchArtwork(artworkUrl: string): Promise<ArrayBuffer> {
