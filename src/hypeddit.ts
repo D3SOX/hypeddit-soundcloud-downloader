@@ -1,5 +1,6 @@
 import { Presets, SingleBar } from 'cli-progress';
 import puppeteer, { type Browser, type Page } from 'puppeteer';
+import Selectors from './selectors';
 import type { HypedditConfig } from './types';
 import { loadCookies, REPO_URL, timeout } from './utils';
 
@@ -44,7 +45,7 @@ export class HypedditDownloader {
 		soundCloudPage.setViewport({ width: 1920, height: 1080 });
 		await soundCloudPage.goto('https://soundcloud.com/messages');
 		await soundCloudPage.waitForNetworkIdle({ timeout: 30_000, idleTime: 10 });
-		await soundCloudPage.click('a[href="/you/library"]');
+		await soundCloudPage.click(Selectors.SOUNDCLOUD_LIBRARY_LINK);
 		await timeout(100);
 		await soundCloudPage.close();
 
@@ -53,7 +54,7 @@ export class HypedditDownloader {
 		spotifyPage.setViewport({ width: 1920, height: 1080 });
 		await spotifyPage.goto('http://accounts.spotify.com/');
 		await spotifyPage.waitForNetworkIdle({ timeout: 30_000, idleTime: 10 });
-		await spotifyPage.click('#account-settings-link');
+		await spotifyPage.click(Selectors.SPOTIFY_ACCOUNT_SETTINGS_LINK);
 		await timeout(100);
 		await spotifyPage.close();
 	}
@@ -66,18 +67,18 @@ export class HypedditDownloader {
 		// wait for page to be loaded
 		await page.waitForNetworkIdle({ timeout: 30_000, idleTime: 10 });
 
-		await page.waitForSelector('#downloadProcess');
+		await page.waitForSelector(Selectors.DOWNLOAD_PROCESS_BUTTON);
 		// click the download button
-		await page.click('#downloadProcess');
+		await page.click(Selectors.DOWNLOAD_PROCESS_BUTTON);
 		await timeout(500);
-		await page.waitForSelector('#all_steps');
+		await page.waitForSelector(Selectors.ALL_STEPS_CONTAINER);
 
 		// fetch gates by getting all divs with their first CSS class inside #all_steps
-		const gateNames = await page.evaluate(() => {
-			return Array.from(document.querySelectorAll('#all_steps > div')).map(
-				(div) => div.classList.item(0),
-			);
-		});
+		const gateNames = await page.evaluate((allStepsDivsSelector) => {
+			return Array.from(
+				document.querySelectorAll<HTMLDivElement>(allStepsDivsSelector),
+			).map((div) => div.classList.item(0));
+		}, Selectors.ALL_STEPS_CHILD_DIVS);
 		console.log('Hypeddit gates found', gateNames);
 
 		const gates: Record<string, (page: Page) => Promise<void>> = {
@@ -116,36 +117,36 @@ export class HypedditDownloader {
 	}
 
 	private async handleEmailSlide(page: Page) {
-		const nextButton = await page.waitForSelector('#email_to_downloads_next');
+		const nextButton = await page.waitForSelector(Selectors.EMAIL_NEXT_BUTTON);
 		if (!nextButton) {
 			throw new Error('Next button not found');
 		}
-		await page.type('#email_name', this.config.name);
-		await page.type('#email_address', this.config.email);
+		await page.type(Selectors.EMAIL_NAME_INPUT, this.config.name);
+		await page.type(Selectors.EMAIL_ADDRESS_INPUT, this.config.email);
 		await nextButton.click();
 	}
 
 	private async handleSoundcloudSlide(page: Page) {
 		// check if #skipper_sc exists, if yes we can just click it to skip this step
-		const skipperSc = await page.evaluate(() => {
-			return document.querySelector('#skipper_sc') !== null;
-		});
+		const skipperSc = await page.evaluate((skipperScSelector) => {
+			return document.querySelector(skipperScSelector) !== null;
+		}, Selectors.SC_SKIPPER_BUTTON);
 		if (skipperSc) {
 			console.log('Soundcloud gate can be skipped for this post. Skipping...');
-			await page.click('#skipper_sc');
+			await page.click(Selectors.SC_SKIPPER_BUTTON);
 			return;
 		}
 
 		// not all hypeddit soundcloud gates have a comment text field, if it does not exist we can skip this
-		const scCommentText = await page.$('#sc_comment_text');
+		const scCommentText = await page.$(Selectors.SC_COMMENT_TEXT_INPUT);
 		if (scCommentText) {
 			// if it exists, we need to enter a comment
-			await page.type('#sc_comment_text', this.config.comment);
+			await page.type(Selectors.SC_COMMENT_TEXT_INPUT, this.config.comment);
 			await timeout(500);
 		}
 
 		// then we can click next
-		const loginButton = await page.waitForSelector('#login_to_sc');
+		const loginButton = await page.waitForSelector(Selectors.SC_LOGIN_BUTTON);
 		if (!loginButton) {
 			throw new Error('Login button not found');
 		}
@@ -175,13 +176,14 @@ export class HypedditDownloader {
 		await soundCloudWindow.setViewport({ width: 1920, height: 1080 });
 		await soundCloudWindow.waitForNetworkIdle({ timeout: 15_000 });
 
-		const submitApprovalButton =
-			await soundCloudWindow.waitForSelector('#submit_approval');
+		const submitApprovalButton = await soundCloudWindow.waitForSelector(
+			Selectors.SC_SUBMIT_APPROVAL_BUTTON,
+		);
 		if (!submitApprovalButton) {
 			throw new Error('Submit approval button not found');
 		}
 
-		await soundCloudWindow.click('#submit_approval');
+		await soundCloudWindow.click(Selectors.SC_SUBMIT_APPROVAL_BUTTON);
 		// wait for window to close
 		while (!soundCloudWindow.isClosed()) {
 			await timeout(100);
@@ -190,29 +192,27 @@ export class HypedditDownloader {
 
 	private async handleInstagramSlide(page: Page) {
 		// check if #skipper_ig exists, if yes we can just click it to skip this step
-		const skipperIg = await page.evaluate(() => {
-			return document.querySelector('#skipper_ig') !== null;
-		});
+		const skipperIg = await page.evaluate((skipperIgSelector) => {
+			return document.querySelector(skipperIgSelector) !== null;
+		}, Selectors.IG_SKIPPER_BUTTON);
 		if (skipperIg) {
 			console.log('Instagram gate can be skipped for this post. Skipping...');
-			await page.click('#skipper_ig');
+			await page.click(Selectors.IG_SKIPPER_BUTTON);
 			return;
 		}
 
-		await page.waitForSelector('#instagram_status .hype-btn-instagram');
+		await page.waitForSelector(Selectors.IG_STATUS_BUTTON);
 		// then we need to click each button with class .hype-btn-instagram that is not done
 		// loop until there are no more buttons with the undone class
 		while (true) {
 			// try to find a button that's not done
-			const button = await page.$(
-				'#instagram_status .hype-btn-instagram.undone',
-			);
+			const button = await page.$(Selectors.IG_STATUS_UNDONE_BUTTON);
 
 			if (!button) {
 				break;
 			}
 
-			await page.click('#instagram_status .hype-btn-instagram.undone');
+			await page.click(Selectors.IG_STATUS_UNDONE_BUTTON);
 
 			// wait for the Instagram window to appear (with timeout)
 			let instagramWindow: Page | undefined;
@@ -246,18 +246,18 @@ export class HypedditDownloader {
 		}
 
 		// then we can click next
-		await page.waitForSelector('#skipper_ig_next');
-		await page.click('#skipper_ig_next');
+		await page.waitForSelector(Selectors.IG_NEXT_BUTTON);
+		await page.click(Selectors.IG_NEXT_BUTTON);
 	}
 
 	private async handleSpotifySlide(page: Page) {
 		// check if #skipper_sp exists, if yes we can just click it to skip this step
-		const skipperSp = await page.evaluate(() => {
-			return document.querySelector('#skipper_sp') !== null;
-		});
+		const skipperSp = await page.evaluate((skipperSpSelector) => {
+			return document.querySelector(skipperSpSelector) !== null;
+		}, Selectors.SP_SKIPPER_BUTTON);
 		if (skipperSp) {
 			console.log('Spotify gate can be skipped for this post. Skipping...');
-			await page.click('#skipper_sp');
+			await page.click(Selectors.SP_SKIPPER_BUTTON);
 			return;
 		}
 
@@ -267,19 +267,21 @@ export class HypedditDownloader {
 			);
 		}
 
-		await page.waitForSelector('#login_to_sp');
+		await page.waitForSelector(Selectors.SP_LOGIN_BUTTON);
 
 		// if there is an optInSectionSpotify, we should click the anchor with class .optOutOption first
-		const optInSectionSpotify = await page.$('#optInSectionSpotify');
+		const optInSectionSpotify = await page.$(Selectors.SP_OPT_IN_SECTION);
 		if (optInSectionSpotify) {
-			const optOutOption = await optInSectionSpotify.$('a.optOutOption');
+			const optOutOption = await optInSectionSpotify.$(
+				Selectors.SP_OPT_OUT_OPTION,
+			);
 			if (optOutOption) {
 				await optOutOption.click();
 			}
 		}
 
 		// then we can click the login button
-		await page.click('#login_to_sp');
+		await page.click(Selectors.SP_LOGIN_BUTTON);
 		await timeout(1_500);
 
 		// we might need to click the accept button in the new window if the app is not authorized yet
@@ -292,12 +294,12 @@ export class HypedditDownloader {
 			await spotifyWindow.setViewport({ width: 1920, height: 1080 });
 			await spotifyWindow.waitForNetworkIdle({ timeout: 15_000 });
 
-			await spotifyWindow.waitForSelector('[data-testid="auth-accept"]', {
+			await spotifyWindow.waitForSelector(Selectors.SP_AUTH_ACCEPT_BUTTON, {
 				visible: true,
 			});
 
 			// then we need to click the login button in the new window
-			await spotifyWindow.click('[data-testid="auth-accept"]');
+			await spotifyWindow.click(Selectors.SP_AUTH_ACCEPT_BUTTON);
 
 			// wait for window to close
 			while (!spotifyWindow.isClosed()) {
@@ -307,9 +309,12 @@ export class HypedditDownloader {
 	}
 
 	private async handleDownloadSlide(page: Page) {
-		const downloadButton = await page.waitForSelector('#gateDownloadButton', {
-			visible: true,
-		});
+		const downloadButton = await page.waitForSelector(
+			Selectors.DW_DOWNLOAD_BUTTON,
+			{
+				visible: true,
+			},
+		);
 		if (!downloadButton) {
 			throw new Error('Download button not found');
 		}
@@ -385,13 +390,13 @@ export class HypedditDownloader {
 				console.log(
 					'Download not started after 10 seconds, clicking button again...',
 				);
-				await page.click('#gateDownloadButton');
+				await page.click(Selectors.DW_DOWNLOAD_BUTTON);
 			}
 		}, 10_000);
 
 		// click the download button and wait for download to complete
 		await Promise.all([
-			page.click('#gateDownloadButton'),
+			page.click(Selectors.DW_DOWNLOAD_BUTTON),
 			downloadCompletePromise,
 		]);
 
