@@ -112,7 +112,7 @@ export class HypedditDownloader {
 	}
 
 	async close() {
-		await this.browser.close();
+		await this.browser?.close();
 	}
 
 	private async handleEmailSlide(page: Page) {
@@ -292,11 +292,18 @@ export class HypedditDownloader {
 			await spotifyWindow.setViewport({ width: 1920, height: 1080 });
 			await spotifyWindow.waitForNetworkIdle({ timeout: 15_000 });
 
-			// then we need to click the login button in the new window [data-testid="auth-accept"]
+			await spotifyWindow.waitForSelector('[data-testid="auth-accept"]', {
+				visible: true,
+			});
+
+			// then we need to click the login button in the new window
 			await spotifyWindow.click('[data-testid="auth-accept"]');
+
+			// wait for window to close
+			while (!spotifyWindow.isClosed()) {
+				await timeout(100);
+			}
 		}
-		await timeout(1_000);
-		// window should close automatically
 	}
 
 	private async handleDownloadSlide(page: Page) {
