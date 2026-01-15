@@ -1,5 +1,6 @@
 import prompts from 'prompts';
 import Soundcloud, { type SoundcloudTrack } from 'soundcloud.ts';
+import type { Metadata } from './types';
 
 export class SoundcloudClient {
 	private soundcloud: Soundcloud;
@@ -52,17 +53,31 @@ export class SoundcloudClient {
 		return await response.arrayBuffer();
 	}
 
-	async cleanup() {
-		const { cleanupSoundcloudConfirm } = await prompts({
-			type: 'confirm',
-			name: 'cleanupSoundcloudConfirm',
-			message:
-				'Do you want to cleanup your SoundCloud account (unfollow all users, unlike all tracks, delete all comments and reposts)?',
-			initial: true,
-		});
+	static getMetadata(track: SoundcloudTrack): Metadata {
+		return {
+			title: track.title,
+			artist:
+				track.publisher_metadata?.artist ||
+				track.user.full_name ||
+				track.user.username,
+			album: track.publisher_metadata?.album_title || '',
+			genre: track.genre,
+		};
+	}
 
-		if (!cleanupSoundcloudConfirm) {
-			return;
+	async cleanup(prompt = true) {
+		if (prompt) {
+			const { cleanupSoundcloudConfirm } = await prompts({
+				type: 'confirm',
+				name: 'cleanupSoundcloudConfirm',
+				message:
+					'Do you want to cleanup your SoundCloud account (unfollow all users, unlike all tracks, delete all comments and reposts)?',
+				initial: true,
+			});
+
+			if (!cleanupSoundcloudConfirm) {
+				return;
+			}
 		}
 
 		const me = await this.soundcloud.api.getV2('me');

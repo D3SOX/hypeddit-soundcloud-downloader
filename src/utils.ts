@@ -15,6 +15,16 @@ export async function getFfmpegBin() {
 	return ffmpegBin;
 }
 
+export async function getFfprobeBin() {
+	const ffprobeBin = await lookpath('ffprobe');
+	if (!ffprobeBin) {
+		throw new Error(
+			'ffprobe is not installed. Please make sure it is in your PATH.',
+		);
+	}
+	return ffprobeBin;
+}
+
 export async function timeout(ms: number) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }

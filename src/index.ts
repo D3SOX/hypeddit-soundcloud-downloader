@@ -2,9 +2,10 @@ import prompts from 'prompts';
 import { AudioProcessor } from './audioProcessor';
 import { HypedditDownloader } from './hypeddit';
 import { SoundcloudClient } from './soundcloud';
-import { getFfmpegBin } from './utils';
+import { getFfmpegBin, getFfprobeBin } from './utils';
 
 const ffmpegBin = await getFfmpegBin();
+const ffprobeBin = await getFfprobeBin();
 
 const SC_COMMENT = process.env.SC_COMMENT;
 if (!SC_COMMENT) {
@@ -92,11 +93,14 @@ await hypedditDownloader.close();
 
 await soundcloudClient.cleanup();
 
-if (downloadFilename && track) {
+if (downloadFilename) {
 	const artwork = await soundcloudClient.fetchArtwork(track.artwork_url);
 
-	const audioProcessor = new AudioProcessor(ffmpegBin);
-	const metadata = await audioProcessor.promptForMetadata(track);
+	const audioProcessor = new AudioProcessor(ffmpegBin, ffprobeBin);
+	const metadata = await audioProcessor.promptForMetadata(
+		track,
+		downloadFilename,
+	);
 
 	await audioProcessor.processAudio(downloadFilename, metadata, artwork);
 }
