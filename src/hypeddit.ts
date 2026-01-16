@@ -121,7 +121,11 @@ export class HypedditDownloader {
 		if (!nextButton) {
 			throw new Error('Next button not found');
 		}
-		await page.type(Selectors.EMAIL_NAME_INPUT, this.config.name);
+		// not all email gates require entering a name
+		const emailNameInput = await page.$(Selectors.EMAIL_NAME_INPUT);
+		if (emailNameInput) {
+			await page.type(Selectors.EMAIL_NAME_INPUT, this.config.name);
+		}
 		await page.type(Selectors.EMAIL_ADDRESS_INPUT, this.config.email);
 		await nextButton.click();
 	}
