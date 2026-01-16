@@ -286,6 +286,8 @@ export class HypedditDownloader {
 
 		// then we can click the login button
 		await page.click(Selectors.SP_LOGIN_BUTTON);
+		// TODO: I think this timeout is the only thing that keeps it working when spotify is already authorized,
+		// TODO: Maybe we should also wait for a window to open in parallel to this and it being closed again?
 		await timeout(1_500);
 
 		// we might need to click the accept button in the new window if the app is not authorized yet
@@ -293,6 +295,7 @@ export class HypedditDownloader {
 		const spotifyWindow = browserWindows.find((window) =>
 			window.url().includes('spotify.com'),
 		);
+		// TODO: we should also try to deauthorize hypeddit from spotify and see if this code still works
 		if (spotifyWindow) {
 			await spotifyWindow.bringToFront();
 			await spotifyWindow.setViewport({ width: 1920, height: 1080 });
