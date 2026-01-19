@@ -1,6 +1,6 @@
 import { basename, join } from 'node:path';
+import { confirm, input } from '@inquirer/prompts';
 import { execa } from 'execa';
-import prompts from 'prompts';
 import type { SoundcloudTrack } from 'soundcloud.ts';
 import { SoundcloudClient } from './soundcloud';
 import type { Metadata } from './types';
@@ -83,11 +83,9 @@ export class AudioProcessor {
 					console.log('  Genre:', existingMetadata.genre || '(not set)');
 					console.log();
 
-					const { wantToRetag } = await prompts({
-						type: 'confirm',
-						name: 'wantToRetag',
+					const wantToRetag = await confirm({
 						message: 'Do you want to retag this MP3 file?',
-						initial: true,
+						default: true,
 					});
 
 					if (!wantToRetag) {
@@ -110,36 +108,28 @@ export class AudioProcessor {
 			'Now you can correct the metadata for the resulting MP3 file. All fields are optional and will be used if provided.',
 		);
 
-		const { correctedTitle } = await prompts({
-			type: 'text',
-			name: 'correctedTitle',
+		const correctedTitle = await input({
 			message: 'Check and correct the title',
-			initial: title,
+			default: title,
 		});
-		const { correctedArtist } = await prompts({
-			type: 'text',
-			name: 'correctedArtist',
+		const correctedArtist = await input({
 			message: 'Check and correct the artist',
-			initial: artist,
+			default: artist,
 		});
-		const { correctedAlbum } = await prompts({
-			type: 'text',
-			name: 'correctedAlbum',
+		const correctedAlbum = await input({
 			message: 'Check and correct the album',
-			initial: album,
+			default: album,
 		});
-		const { correctedGenre } = await prompts({
-			type: 'text',
-			name: 'correctedGenre',
+		const correctedGenre = await input({
 			message: 'Check and correct the genre',
-			initial: genre,
+			default: genre,
 		});
 
 		return {
-			title: correctedTitle?.trim(),
-			artist: correctedArtist?.trim(),
-			album: correctedAlbum?.trim(),
-			genre: correctedGenre?.trim(),
+			title: correctedTitle.trim(),
+			artist: correctedArtist.trim(),
+			album: correctedAlbum.trim(),
+			genre: correctedGenre.trim(),
 		};
 	}
 
@@ -178,13 +168,10 @@ export class AudioProcessor {
 				// ask if you want to remove the lossless file
 				let removeLosslessFile = true;
 				if (losslessHandling === 'prompt') {
-					const { removeLosslessFilePrompt } = await prompts({
-						type: 'confirm',
-						name: 'removeLosslessFilePrompt',
+					removeLosslessFile = await confirm({
 						message: 'Do you want to remove the lossless file now?',
-						initial: true,
+						default: true,
 					});
-					removeLosslessFile = removeLosslessFilePrompt;
 				} else if (losslessHandling === 'always') {
 					removeLosslessFile = true;
 				} else if (losslessHandling === 'never') {

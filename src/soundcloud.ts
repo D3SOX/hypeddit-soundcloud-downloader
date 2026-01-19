@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import prompts from 'prompts';
+import { confirm } from '@inquirer/prompts';
 import Soundcloud, { type SoundcloudTrack } from 'soundcloud.ts';
 import type { Metadata } from './types';
 
@@ -82,12 +82,10 @@ export class SoundcloudClient {
 
 	async cleanup(prompt = true) {
 		if (prompt) {
-			const { cleanupSoundcloudConfirm } = await prompts({
-				type: 'confirm',
-				name: 'cleanupSoundcloudConfirm',
+			const cleanupSoundcloudConfirm = await confirm({
 				message:
 					'Do you want to cleanup your SoundCloud account (unfollow all users, unlike all tracks, delete all comments and reposts)?',
-				initial: true,
+				default: true,
 			});
 
 			if (!cleanupSoundcloudConfirm) {
