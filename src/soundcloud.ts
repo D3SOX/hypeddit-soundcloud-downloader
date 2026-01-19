@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import prompts from 'prompts';
 import Soundcloud, { type SoundcloudTrack } from 'soundcloud.ts';
 import type { Metadata } from './types';
@@ -47,10 +48,24 @@ export class SoundcloudClient {
 		return null;
 	}
 
-	async fetchArtwork(artworkUrl: string): Promise<ArrayBuffer> {
-		const url = artworkUrl.replace('large', 'original');
-		const response = await fetch(url);
-		return await response.arrayBuffer();
+	async fetchArtwork(
+		artworkUrl: string,
+	): Promise<{ buffer: ArrayBuffer; fileName: string }> {
+		const originalArtworkUrl = artworkUrl.replace('large', 'original');
+		const fileName = originalArtworkUrl.split('/').pop() || 'artwork.jpg';
+		if (await Bun.file(join('./downloads', fileName)).exists()) {
+			console.log(`✓ Found artwork in downloads folder: ${fileName}`);
+			return {
+				buffer: await Bun.file(join('./downloads', fileName)).arrayBuffer(),
+				fileName,
+			};
+		}
+		const response = await fetch(originalArtworkUrl);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch artwork: ${response.statusText}`);
+		}
+		const buffer = await response.arrayBuffer();
+		return { buffer, fileName };
 	}
 
 	static getMetadata(track: SoundcloudTrack): Metadata {

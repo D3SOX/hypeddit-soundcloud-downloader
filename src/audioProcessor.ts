@@ -146,14 +146,19 @@ export class AudioProcessor {
 	async processAudio(
 		filename: string,
 		metadata: Metadata,
-		artwork: ArrayBuffer,
+		artwork: { buffer: ArrayBuffer; fileName: string },
 		losslessHandling: 'prompt' | 'always' | 'never' = 'prompt',
 	): Promise<string> {
 		const inputPath = join('./downloads', filename);
 
 		// save artwork to temporary file
-		const artworkPath = join('./downloads', `artwork_${Date.now()}.jpg`);
-		await Bun.write(artworkPath, artwork);
+		const artworkPath = join('./downloads', artwork.fileName);
+		if (await Bun.file(artworkPath).exists()) {
+			console.log(`✓ Found artwork in downloads folder: ${artwork.fileName}`);
+		} else {
+			await Bun.write(artworkPath, artwork.buffer);
+			console.log(`✓ Saved artwork to downloads folder: ${artwork.fileName}`);
+		}
 
 		try {
 			// if it is a WAV or AIFF, we convert it to MP3
