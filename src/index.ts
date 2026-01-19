@@ -71,7 +71,7 @@ const { initializeLogins } = await prompts({
 	type: 'confirm',
 	name: 'initializeLogins',
 	message:
-		'Do you want to initialize logins for SoundCloud and Spotify? This is required for the first run. You can skip it for subsequent runs.',
+		"Do you want to initialize logins? This is required for the first run. You can skip it for subsequent runs. If you don't use the tool for a while it might be required again.",
 	initial: false,
 });
 
