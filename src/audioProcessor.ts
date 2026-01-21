@@ -143,11 +143,9 @@ export class AudioProcessor {
 
 		// save artwork to temporary file
 		const artworkPath = join('./downloads', artwork.fileName);
-		if (await Bun.file(artworkPath).exists()) {
-			console.log(`✓ Found artwork in downloads folder: ${artwork.fileName}`);
-		} else {
+		const artworkExists = await Bun.file(artworkPath).exists();
+		if (!artworkExists) {
 			await Bun.write(artworkPath, artwork.buffer);
-			console.log(`✓ Saved artwork to downloads folder: ${artwork.fileName}`);
 		}
 
 		try {
