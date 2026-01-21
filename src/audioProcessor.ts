@@ -78,7 +78,9 @@ export class AudioProcessor {
 			// if it is a WAV or AIFF, we convert it to MP3
 			if (
 				filename.toLowerCase().endsWith('.wav') ||
-				filename.toLowerCase().endsWith('.aiff')
+				filename.toLowerCase().endsWith('.aiff') ||
+				filename.toLowerCase().endsWith('.aif') ||
+				filename.toLowerCase().endsWith('.flac')
 			) {
 				await this.convertLosslessToMp3(
 					inputPath,
@@ -125,7 +127,11 @@ export class AudioProcessor {
 	): Promise<void> {
 		const outputPath = join(
 			'./downloads',
-			filename.replace(/\.wav$/i, '.mp3').replace(/\.aiff$/i, '.mp3'),
+			filename
+				.replace(/\.wav$/i, '.mp3')
+				.replace(/\.aiff$/i, '.mp3')
+				.replace(/\.aif$/i, '.mp3')
+				.replace(/\.flac$/i, '.mp3'),
 		);
 
 		const args: string[] = [

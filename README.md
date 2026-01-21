@@ -8,7 +8,7 @@ A simple tool that automates downloading audio from Hypeddit posts and enriches 
 - 🔄 Handles multiple gate types (see [How It Works](#how-it-works))
 - 📝 Fetches metadata from the provided SoundCloud link
 - 🎨 Manual metadata correction before finalizing
-- 🎧 Converts Lossless (WAV/AIFF) files to MP3 (320kbps)
+- 🎧 Converts Lossless (WAV/AIFF/FLAC) files to MP3 (320kbps)
 - 🏷️ Tags MP3 files with metadata and artwork from SoundCloud
 - 🧹 Optional cleanup of the SoundCloud account (unfollow, unlike, delete comments/reposts)
 
@@ -95,5 +95,5 @@ The final MP3 file will be saved in the `./downloads` directory with proper meta
    - Download gate: Triggers the audio download
 
 **File Processing**:
-   - **Lossless (WAV/AIFF) files**: Converted to MP3 (320kbps) with metadata and artwork
+   - **Lossless (WAV/AIFF/FLAC) files**: Converted to MP3 (320kbps) with metadata and artwork
    - **MP3 files**: Retagged with metadata and artwork (no re-encoding)
