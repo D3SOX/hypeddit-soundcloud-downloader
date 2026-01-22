@@ -1,102 +1,132 @@
-import prompts from 'prompts';
+import { confirm, input } from '@inquirer/prompts';
 import { AudioProcessor } from './audioProcessor';
+import { loadConfig, saveConfig } from './config';
 import { HypedditDownloader } from './hypeddit';
 import { SoundcloudClient } from './soundcloud';
-import { getFfmpegBin } from './utils';
+import { getFfmpegBin, getFfprobeBin, validateSoundcloudUrl } from './utils';
 
-const ffmpegBin = await getFfmpegBin();
+try {
+	const ffmpegBin = await getFfmpegBin();
+	const ffprobeBin = await getFfprobeBin();
 
-const SC_COMMENT = process.env.SC_COMMENT;
-if (!SC_COMMENT) {
-	throw new Error('SC_COMMENT is required. Please set it in your .env file.');
-}
-const HYPEDDIT_NAME = process.env.HYPEDDIT_NAME;
-const HYPEDDIT_EMAIL = process.env.HYPEDDIT_EMAIL;
-if (!HYPEDDIT_NAME || !HYPEDDIT_EMAIL) {
-	throw new Error(
-		'HYPEDDIT_NAME and HYPEDDIT_EMAIL are required. Please set them in your .env file.',
-	);
-}
+	const SC_COMMENT = process.env.SC_COMMENT;
+	if (!SC_COMMENT) {
+		throw new Error('SC_COMMENT is required. Please set it in your .env file.');
+	}
+	const HYPEDDIT_NAME = process.env.HYPEDDIT_NAME;
+	const HYPEDDIT_EMAIL = process.env.HYPEDDIT_EMAIL;
+	if (!HYPEDDIT_NAME || !HYPEDDIT_EMAIL) {
+		throw new Error(
+			'HYPEDDIT_NAME and HYPEDDIT_EMAIL are required. Please set them in your .env file.',
+		);
+	}
 
-const { url: soundcloudUrl } = await prompts({
-	type: 'text',
-	name: 'url',
-	message: 'Enter the URL of the SoundCloud track',
-	validate: (value) => {
-		if (!value || !value.startsWith('https://soundcloud.com/')) {
-			return 'A valid SoundCloud URL is required';
-		}
-		return true;
-	},
-});
+	const config = await loadConfig();
 
-if (!soundcloudUrl) {
-	throw new Error('SoundCloud URL is required');
-}
+	const soundcloudArg = process.argv[2];
+	const soundcloudArgValidation = soundcloudArg
+		? validateSoundcloudUrl(soundcloudArg)
+		: true;
 
-const soundcloudClient = new SoundcloudClient();
-const track = await soundcloudClient.getTrack(soundcloudUrl);
+	if (soundcloudArg && soundcloudArgValidation !== true) {
+		console.log(soundcloudArgValidation);
+	}
+	const soundcloudUrl =
+		soundcloudArg && soundcloudArgValidation === true
+			? soundcloudArg
+			: await input({
+					message: 'Enter the URL of the SoundCloud track',
+					validate: validateSoundcloudUrl,
+				});
 
-// try to find Hypeddit URL from soundcloud track
-let hypedditUrl: string | null = await soundcloudClient.getHypedditURL(track);
+	const soundcloudClient = new SoundcloudClient();
+	const track = await soundcloudClient.getTrack(soundcloudUrl);
 
-// if no Hypeddit URL was found, prompt the user for it
-if (!hypedditUrl) {
-	const { hypedditUrlInput } = await prompts({
-		type: 'text',
-		name: 'hypedditUrlInput',
-		message: 'Enter the URL of the Hypeddit post',
-		validate: (value) => {
-			if (!value || !value.startsWith('https://hypeddit.com/')) {
-				return 'A valid Hypeddit URL is required';
-			}
-			return true;
-		},
+	// try to find Hypeddit URL from soundcloud track
+	let hypedditUrl: string | null = await soundcloudClient.getHypedditURL(track);
+
+	// if no Hypeddit URL was found, prompt the user for it
+	if (!hypedditUrl) {
+		hypedditUrl = await input({
+			message: 'Enter the URL of the Hypeddit post',
+			validate: (value) => {
+				if (!value || !value.startsWith('https://hypeddit.com/')) {
+					return 'A valid Hypeddit URL is required';
+				}
+				return true;
+			},
+		});
+	}
+
+	const headless = config
+		? config.headless
+		: await confirm({
+				message:
+					'Do you want to run the browser in headless mode? (You will not see the browser window but the process will run in the background). If something does not work it is recommended to turn it off.',
+				default: true,
+			});
+
+	const initializeLogins = config
+		? config.initializeLogins
+		: await confirm({
+				message:
+					"Do you want to initialize logins? This is required for the first run. You can skip it for subsequent runs. If you don't use the tool for a while it might be required again.",
+				default: false,
+			});
+
+	const hypedditDownloader = new HypedditDownloader({
+		name: HYPEDDIT_NAME,
+		email: HYPEDDIT_EMAIL,
+		comment: SC_COMMENT,
+		headless,
 	});
-	hypedditUrl = hypedditUrlInput;
-}
-if (!hypedditUrl) {
-	throw new Error('Hypeddit URL is required');
-}
+	await hypedditDownloader.initialize();
 
-const { headless } = await prompts({
-	type: 'confirm',
-	name: 'headless',
-	message:
-		'Do you want to run the browser in headless mode? (You will not see the browser window but the process will run in the background). If something does not work it is recommended to turn it off.',
-	initial: true,
-});
+	if (initializeLogins) {
+		await hypedditDownloader.prepareLogins();
+		if (config) {
+			await saveConfig({ ...config, initializeLogins: false });
+			console.log('✓ Updated config.json: initializeLogins set to false');
+		}
+	}
 
-const { initializeLogins } = await prompts({
-	type: 'confirm',
-	name: 'initializeLogins',
-	message:
-		"Do you want to initialize logins? This is required for the first run. You can skip it for subsequent runs. If you don't use the tool for a while it might be required again.",
-	initial: false,
-});
+	const downloadFilename = await hypedditDownloader.downloadAudio(hypedditUrl);
+	await hypedditDownloader.close();
 
-const hypedditDownloader = new HypedditDownloader({
-	name: HYPEDDIT_NAME,
-	email: HYPEDDIT_EMAIL,
-	comment: SC_COMMENT,
-	headless,
-});
-await hypedditDownloader.initialize();
+	if (config) {
+		if (config.cleanupSoundCloudAccount) {
+			await soundcloudClient.cleanup(false);
+		}
+	} else {
+		await soundcloudClient.cleanup();
+	}
 
-if (initializeLogins) {
-	await hypedditDownloader.prepareLogins();
-}
+	if (downloadFilename) {
+		const artwork = await soundcloudClient.fetchArtwork(track.artwork_url);
 
-const downloadFilename = await hypedditDownloader.downloadAudio(hypedditUrl);
-await hypedditDownloader.close();
+		const audioProcessor = new AudioProcessor(ffmpegBin, ffprobeBin);
+		const metadata = await audioProcessor.promptForMetadata(
+			track,
+			downloadFilename,
+		);
 
-await soundcloudClient.cleanup();
+		const losslessHandling = config
+			? config.deleteLosslessAfterConversion
+				? 'always'
+				: 'never'
+			: 'prompt';
 
-if (downloadFilename && track) {
-	const artwork = await soundcloudClient.fetchArtwork(track.artwork_url);
-
-	const audioProcessor = new AudioProcessor(ffmpegBin);
-	const metadata = await audioProcessor.promptForMetadata(track);
-
-	await audioProcessor.processAudio(downloadFilename, metadata, artwork);
+		await audioProcessor.processAudio(
+			downloadFilename,
+			metadata,
+			artwork,
+			losslessHandling,
+		);
+	}
+} catch (error) {
+	if (error instanceof Error && error.name === 'ExitPromptError') {
+		console.log('\nAborted by user.');
+		process.exit(0);
+	}
+	throw error;
 }

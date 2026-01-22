@@ -15,6 +15,16 @@ export async function getFfmpegBin() {
 	return ffmpegBin;
 }
 
+export async function getFfprobeBin() {
+	const ffprobeBin = await lookpath('ffprobe');
+	if (!ffprobeBin) {
+		throw new Error(
+			'ffprobe is not installed. Please make sure it is in your PATH.',
+		);
+	}
+	return ffprobeBin;
+}
+
 export async function timeout(ms: number) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -46,4 +56,11 @@ export async function loadCookies(filename: string): Promise<CookieData[]> {
 
 		return puppeteerCookie;
 	});
+}
+
+export function validateSoundcloudUrl(value: string) {
+	if (!value || !value.startsWith('https://soundcloud.com/')) {
+		return 'A valid SoundCloud URL is required';
+	}
+	return true;
 }

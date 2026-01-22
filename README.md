@@ -42,6 +42,15 @@ For `HYPEDDIT_NAME` currently everything works (I use just `asd`)
 
 For `HYPEDDIT_EMAIL` you can enter any valid email address (For example grab one from [temp-mail.org](https://temp-mail.org))
 
+### Config file (optional)
+
+Copy the example config:
+```bash
+cp config.example.json config.json
+```
+
+If `config.json` is missing, the tool will prompt for these values every time.
+
 #### Get SoundCloud API Credentials
 
 1. Go to [soundcloud.com](https://soundcloud.com) and log in (skip if you are already logged in)
@@ -81,6 +90,12 @@ If you plan to download tracks that require Spotify gates, you'll also need Spot
 Run the tool and follow the prompts.
 ```bash
 bun start
+```
+
+You can also pass a SoundCloud track URL directly.
+
+```bash
+bun start https://soundcloud.com/artist/track
 ```
 
 The final MP3 file will be saved in the `./downloads` directory with proper metadata and artwork embedded.

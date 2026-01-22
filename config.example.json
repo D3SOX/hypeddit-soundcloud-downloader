@@ -1,0 +1,6 @@
+{
+  "headless": true,
+  "initializeLogins": true,
+  "deleteLosslessAfterConversion": true,
+  "cleanupSoundCloudAccount": true
+}

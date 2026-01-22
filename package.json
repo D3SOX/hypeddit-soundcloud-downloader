@@ -14,23 +14,23 @@
   "license": "GPL-3.0-or-later",
   "scripts": {
     "start": "bun run .",
+    "start:server": "bun run ./src/server.ts",
     "lint": "biome check ./src",
     "lint:fix": "biome check --fix ./src"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.11",
     "@types/bun": "latest",
-    "@types/cli-progress": "^3.11.6",
-    "@types/prompts": "^2.4.9"
+    "@types/cli-progress": "^3.11.6"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
+    "@inquirer/prompts": "^8.2.0",
     "cli-progress": "^3.12.0",
     "execa": "^9.6.1",
     "find-bin": "^1.1.0",
-    "prompts": "^2.4.2",
     "puppeteer": "^24.34.0",
     "soundcloud.ts": "^0.7.1"
   },

@@ -1,5 +1,7 @@
-import prompts from 'prompts';
+import { join } from 'node:path';
+import { confirm } from '@inquirer/prompts';
 import Soundcloud, { type SoundcloudTrack } from 'soundcloud.ts';
+import type { Metadata } from './types';
 
 export class SoundcloudClient {
 	private soundcloud: Soundcloud;
@@ -46,23 +48,49 @@ export class SoundcloudClient {
 		return null;
 	}
 
-	async fetchArtwork(artworkUrl: string): Promise<ArrayBuffer> {
-		const url = artworkUrl.replace('large', 'original');
-		const response = await fetch(url);
-		return await response.arrayBuffer();
+	async fetchArtwork(
+		artworkUrl: string,
+	): Promise<{ buffer: ArrayBuffer; fileName: string }> {
+		const originalArtworkUrl = artworkUrl.replace('large', 'original');
+		const fileName = originalArtworkUrl.split('/').pop() || 'artwork.jpg';
+		if (await Bun.file(join('./downloads', fileName)).exists()) {
+			console.log(`✓ Found artwork in downloads folder: ${fileName}`);
+			return {
+				buffer: await Bun.file(join('./downloads', fileName)).arrayBuffer(),
+				fileName,
+			};
+		}
+		const response = await fetch(originalArtworkUrl);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch artwork: ${response.statusText}`);
+		}
+		const buffer = await response.arrayBuffer();
+		return { buffer, fileName };
 	}
 
-	async cleanup() {
-		const { cleanupSoundcloudConfirm } = await prompts({
-			type: 'confirm',
-			name: 'cleanupSoundcloudConfirm',
-			message:
-				'Do you want to cleanup your SoundCloud account (unfollow all users, unlike all tracks, delete all comments and reposts)?',
-			initial: true,
-		});
+	static getMetadata(track: SoundcloudTrack): Metadata {
+		return {
+			title: track.title,
+			artist:
+				track.publisher_metadata?.artist ||
+				track.user.full_name ||
+				track.user.username,
+			album: track.publisher_metadata?.album_title || '',
+			genre: track.genre,
+		};
+	}
 
-		if (!cleanupSoundcloudConfirm) {
-			return;
+	async cleanup(prompt = true) {
+		if (prompt) {
+			const cleanupSoundcloudConfirm = await confirm({
+				message:
+					'Do you want to cleanup your SoundCloud account (unfollow all users, unlike all tracks, delete all comments and reposts)?',
+				default: true,
+			});
+
+			if (!cleanupSoundcloudConfirm) {
+				return;
+			}
 		}
 
 		const me = await this.soundcloud.api.getV2('me');
