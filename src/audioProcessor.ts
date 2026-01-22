@@ -111,18 +111,22 @@ export class AudioProcessor {
 		const correctedTitle = await input({
 			message: 'Check and correct the title',
 			default: title,
+			prefill: 'editable',
 		});
 		const correctedArtist = await input({
 			message: 'Check and correct the artist',
 			default: artist,
+			prefill: 'editable',
 		});
 		const correctedAlbum = await input({
 			message: 'Check and correct the album',
 			default: album,
+			prefill: 'editable',
 		});
 		const correctedGenre = await input({
 			message: 'Check and correct the genre',
 			default: genre,
+			prefill: 'editable',
 		});
 
 		return {
