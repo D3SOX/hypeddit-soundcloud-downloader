@@ -65,10 +65,10 @@ export class AudioProcessor {
 
 	async promptForMetadata(
 		track: SoundcloudTrack,
-		filename?: string,
+		filename: string,
 	): Promise<Metadata> {
 		// if file is MP3, show existing metadata and ask if user wants to retag
-		if (filename?.toLowerCase().endsWith('.mp3') && filename) {
+		if (filename.toLowerCase().endsWith('.mp3')) {
 			const inputPath = join('./downloads', filename);
 
 			const fileExists = await Bun.file(inputPath).exists();
