@@ -1,5 +1,6 @@
 import { confirm, input } from '@inquirer/prompts';
 import { AudioProcessor } from './audioProcessor';
+import { loadConfig, saveConfig } from './config';
 import { HypedditDownloader } from './hypeddit';
 import { SoundcloudClient } from './soundcloud';
 import { getFfmpegBin, getFfprobeBin } from './utils';
@@ -19,6 +20,8 @@ try {
 			'HYPEDDIT_NAME and HYPEDDIT_EMAIL are required. Please set them in your .env file.',
 		);
 	}
+
+	const config = await loadConfig();
 
 	const soundcloudUrl = await input({
 		message: 'Enter the URL of the SoundCloud track',
@@ -49,17 +52,21 @@ try {
 		});
 	}
 
-	const headless = await confirm({
-		message:
-			'Do you want to run the browser in headless mode? (You will not see the browser window but the process will run in the background). If something does not work it is recommended to turn it off.',
-		default: true,
-	});
+	const headless = config
+		? config.headless
+		: await confirm({
+				message:
+					'Do you want to run the browser in headless mode? (You will not see the browser window but the process will run in the background). If something does not work it is recommended to turn it off.',
+				default: true,
+			});
 
-	const initializeLogins = await confirm({
-		message:
-			"Do you want to initialize logins? This is required for the first run. You can skip it for subsequent runs. If you don't use the tool for a while it might be required again.",
-		default: false,
-	});
+	const initializeLogins = config
+		? config.initializeLogins
+		: await confirm({
+				message:
+					"Do you want to initialize logins? This is required for the first run. You can skip it for subsequent runs. If you don't use the tool for a while it might be required again.",
+				default: false,
+			});
 
 	const hypedditDownloader = new HypedditDownloader({
 		name: HYPEDDIT_NAME,
@@ -71,12 +78,22 @@ try {
 
 	if (initializeLogins) {
 		await hypedditDownloader.prepareLogins();
+		if (config) {
+			await saveConfig({ ...config, initializeLogins: false });
+			console.log('✓ Updated config.json: initializeLogins set to false');
+		}
 	}
 
 	const downloadFilename = await hypedditDownloader.downloadAudio(hypedditUrl);
 	await hypedditDownloader.close();
 
-	await soundcloudClient.cleanup();
+	if (config) {
+		if (config.cleanupSoundCloudAccount) {
+			await soundcloudClient.cleanup(false);
+		}
+	} else {
+		await soundcloudClient.cleanup();
+	}
 
 	if (downloadFilename) {
 		const artwork = await soundcloudClient.fetchArtwork(track.artwork_url);
@@ -87,7 +104,18 @@ try {
 			downloadFilename,
 		);
 
-		await audioProcessor.processAudio(downloadFilename, metadata, artwork);
+		const losslessHandling = config
+			? config.deleteLosslessAfterConversion
+				? 'always'
+				: 'never'
+			: 'prompt';
+
+		await audioProcessor.processAudio(
+			downloadFilename,
+			metadata,
+			artwork,
+			losslessHandling,
+		);
 	}
 } catch (error) {
 	if (error instanceof Error && error.name === 'ExitPromptError') {

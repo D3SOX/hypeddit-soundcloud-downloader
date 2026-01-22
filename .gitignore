@@ -40,3 +40,5 @@ downloads
 soundcloud-cookies.json
 # spotify cookies
 spotify-cookies.json
+# config file
+config.json
