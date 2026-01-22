@@ -92,6 +92,12 @@ Run the tool and follow the prompts.
 bun start
 ```
 
+You can also pass a SoundCloud track URL directly.
+
+```bash
+bun start https://soundcloud.com/artist/track
+```
+
 The final MP3 file will be saved in the `./downloads` directory with proper metadata and artwork embedded.
 
 ## How It Works

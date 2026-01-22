@@ -57,3 +57,10 @@ export async function loadCookies(filename: string): Promise<CookieData[]> {
 		return puppeteerCookie;
 	});
 }
+
+export function validateSoundcloudUrl(value: string) {
+	if (!value || !value.startsWith('https://soundcloud.com/')) {
+		return 'A valid SoundCloud URL is required';
+	}
+	return true;
+}

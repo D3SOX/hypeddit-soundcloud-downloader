@@ -3,7 +3,7 @@ import { AudioProcessor } from './audioProcessor';
 import { loadConfig, saveConfig } from './config';
 import { HypedditDownloader } from './hypeddit';
 import { SoundcloudClient } from './soundcloud';
-import { getFfmpegBin, getFfprobeBin } from './utils';
+import { getFfmpegBin, getFfprobeBin, validateSoundcloudUrl } from './utils';
 
 try {
 	const ffmpegBin = await getFfmpegBin();
@@ -23,15 +23,21 @@ try {
 
 	const config = await loadConfig();
 
-	const soundcloudUrl = await input({
-		message: 'Enter the URL of the SoundCloud track',
-		validate: (value) => {
-			if (!value || !value.startsWith('https://soundcloud.com/')) {
-				return 'A valid SoundCloud URL is required';
-			}
-			return true;
-		},
-	});
+	const soundcloudArg = process.argv[2];
+	const soundcloudArgValidation = soundcloudArg
+		? validateSoundcloudUrl(soundcloudArg)
+		: true;
+
+	if (soundcloudArg && soundcloudArgValidation !== true) {
+		console.log(soundcloudArgValidation);
+	}
+	const soundcloudUrl =
+		soundcloudArg && soundcloudArgValidation === true
+			? soundcloudArg
+			: await input({
+					message: 'Enter the URL of the SoundCloud track',
+					validate: validateSoundcloudUrl,
+				});
 
 	const soundcloudClient = new SoundcloudClient();
 	const track = await soundcloudClient.getTrack(soundcloudUrl);
