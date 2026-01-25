@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { confirm } from '@inquirer/prompts';
 import Soundcloud, { type SoundcloudTrack } from 'soundcloud.ts';
+import { extractHypedditUrl, getDefaultMetadata } from './flowUtils';
 import type { Metadata } from './types';
 
 export class SoundcloudClient {
@@ -24,28 +25,21 @@ export class SoundcloudClient {
 	}
 
 	async getHypedditURL(track: SoundcloudTrack) {
-		const { purchase_url, description } = track;
-		if (purchase_url?.startsWith('https://hypeddit.com/')) {
-			console.log(
-				'Found Hypeddit URL from SoundCloud track purchase URL:',
-				purchase_url,
-			);
-			return purchase_url;
-		}
-
-		if (description?.includes('https://hypeddit.com/')) {
-			const matchedUrl = description.match(
-				/https:\/\/hypeddit\.com\/[^\s]+/,
-			)?.[0];
-			if (matchedUrl) {
+		const hypedditUrl = extractHypedditUrl(track);
+		if (hypedditUrl) {
+			if (track.purchase_url?.startsWith('https://hypeddit.com/')) {
+				console.log(
+					'Found Hypeddit URL from SoundCloud track purchase URL:',
+					hypedditUrl,
+				);
+			} else {
 				console.log(
 					'Found Hypeddit URL from SoundCloud track description:',
-					matchedUrl,
+					hypedditUrl,
 				);
-				return matchedUrl;
 			}
 		}
-		return null;
+		return hypedditUrl;
 	}
 
 	async fetchArtwork(
@@ -69,15 +63,7 @@ export class SoundcloudClient {
 	}
 
 	static getMetadata(track: SoundcloudTrack): Metadata {
-		return {
-			title: track.title,
-			artist:
-				track.publisher_metadata?.artist ||
-				track.user.full_name ||
-				track.user.username,
-			album: track.publisher_metadata?.album_title || '',
-			genre: track.genre,
-		};
+		return getDefaultMetadata(track);
 	}
 
 	async cleanup(prompt = true) {

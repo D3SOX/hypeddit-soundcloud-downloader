@@ -58,9 +58,5 @@ export async function loadCookies(filename: string): Promise<CookieData[]> {
 	});
 }
 
-export function validateSoundcloudUrl(value: string) {
-	if (!value || !value.startsWith('https://soundcloud.com/')) {
-		return 'A valid SoundCloud URL is required';
-	}
-	return true;
-}
+// Re-export shared flow utilities for backward compatibility
+export { validateHypedditUrl, validateSoundcloudUrl } from './flowUtils';

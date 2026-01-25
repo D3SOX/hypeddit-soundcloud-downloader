@@ -2,7 +2,12 @@ import { basename, join } from 'node:path';
 import { confirm, input } from '@inquirer/prompts';
 import { execa } from 'execa';
 import type { SoundcloudTrack } from 'soundcloud.ts';
-import { SoundcloudClient } from './soundcloud';
+import {
+	getDefaultMetadata,
+	isLosslessFormat,
+	isMp3Format,
+	losslessToMp3Filename,
+} from './flowUtils';
 import type { Metadata } from './types';
 import { REPO_URL } from './utils';
 
@@ -15,7 +20,11 @@ export class AudioProcessor {
 		this.ffprobeBin = ffprobeBin;
 	}
 
-	private async readMp3Metadata(inputPath: string): Promise<Metadata | null> {
+	/**
+	 * Reads metadata from an MP3 file using ffprobe
+	 * Made public for Web UI usage
+	 */
+	async readMp3Metadata(inputPath: string): Promise<Metadata | null> {
 		try {
 			const { stdout } = await execa(this.ffprobeBin, [
 				'-v',
@@ -68,7 +77,7 @@ export class AudioProcessor {
 		filename: string,
 	): Promise<Metadata> {
 		// if file is MP3, show existing metadata and ask if user wants to retag
-		if (filename.toLowerCase().endsWith('.mp3')) {
+		if (isMp3Format(filename)) {
 			const inputPath = join('./downloads', filename);
 
 			const fileExists = await Bun.file(inputPath).exists();
@@ -95,7 +104,7 @@ export class AudioProcessor {
 			}
 		}
 
-		const { title, artist, album, genre } = SoundcloudClient.getMetadata(track);
+		const { title, artist, album, genre } = getDefaultMetadata(track);
 
 		console.log('\nFetched metadata:');
 		console.log('  Title:', title || '(not set)');
@@ -153,13 +162,8 @@ export class AudioProcessor {
 		}
 
 		try {
-			// if it is a WAV or AIFF, we convert it to MP3
-			if (
-				filename.toLowerCase().endsWith('.wav') ||
-				filename.toLowerCase().endsWith('.aiff') ||
-				filename.toLowerCase().endsWith('.aif') ||
-				filename.toLowerCase().endsWith('.flac')
-			) {
+			// if it is a WAV, AIFF, or FLAC, we convert it to MP3
+			if (isLosslessFormat(filename)) {
 				const outputPath = await this.convertLosslessToMp3(
 					inputPath,
 					artworkPath,
@@ -186,7 +190,7 @@ export class AudioProcessor {
 				return outputPath;
 			}
 			// otherwise if it is an MP3, we retag it with the correct metadata
-			else if (filename.toLowerCase().endsWith('.mp3')) {
+			else if (isMp3Format(filename)) {
 				// if metadata is empty, skip retagging
 				const hasMetadata =
 					metadata.title || metadata.artist || metadata.album || metadata.genre;
@@ -216,14 +220,7 @@ export class AudioProcessor {
 		metadata: Metadata,
 		filename: string,
 	): Promise<string> {
-		const outputPath = join(
-			'./downloads',
-			filename
-				.replace(/\.wav$/i, '.mp3')
-				.replace(/\.aiff$/i, '.mp3')
-				.replace(/\.aif$/i, '.mp3')
-				.replace(/\.flac$/i, '.mp3'),
-		);
+		const outputPath = join('./downloads', losslessToMp3Filename(filename));
 
 		const args: string[] = [
 			'-i',

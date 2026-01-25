@@ -1,5 +1,10 @@
 // Login preparation
 const SOUNDCLOUD_LIBRARY_LINK = 'a[href="/you/library"]';
+const SOUNDCLOUD_CAPTCHA_CONTAINER = 'div[id*="ddChallengeContainer"]';
+const SOUNDCLOUD_CAPTCHA_IFRAME = `iframe[src^="https://geo.captcha-delivery.com/captcha/"]`;
+const SOUNDCLOUD_CAPTCHA_SLIDER = '.slider';
+const SOUNDCLOUD_CAPTCHA_TRACK = '.sliderText';
+
 const SPOTIFY_ACCOUNT_SETTINGS_LINK = '#account-settings-link';
 
 // Hypeddit gate fetching
@@ -36,6 +41,10 @@ const DW_DOWNLOAD_BUTTON = '#gateDownloadButton';
 
 export default {
 	SOUNDCLOUD_LIBRARY_LINK,
+	SOUNDCLOUD_CAPTCHA_CONTAINER,
+	SOUNDCLOUD_CAPTCHA_IFRAME,
+	SOUNDCLOUD_CAPTCHA_SLIDER,
+	SOUNDCLOUD_CAPTCHA_TRACK,
 	SPOTIFY_ACCOUNT_SETTINGS_LINK,
 	DOWNLOAD_PROCESS_BUTTON,
 	ALL_STEPS_CONTAINER,
