@@ -268,8 +268,6 @@ export default function App() {
 			action: {
 				label: 'Confirm',
 				onClick: async () => {
-					setJob((prev) => ({ ...prev, error: null }));
-
 					const toastId = toast.loading('Cleaning up SoundCloud account...');
 
 					try {
@@ -286,14 +284,47 @@ export default function App() {
 							id: toastId,
 						});
 					} catch (err) {
-						const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-						setJob((prev) => ({
-							...prev,
-							error: errorMessage,
-						}));
 						toast.error('Cleanup failed', {
 							id: toastId,
-							description: errorMessage,
+							description: err instanceof Error ? err.message : 'Unknown error',
+						});
+					}
+				},
+			},
+			cancel: {
+				label: 'Cancel',
+				onClick: () => {},
+			},
+		});
+	};
+
+	const handleInitializeLogins = async () => {
+		toast('Initialize logins?', {
+			description: 'This will open a browser window (non-headless) to initialize SoundCloud and Spotify logins. You may need to solve a captcha if the built-in solver fails.',
+			closeButton: false,
+			duration: Infinity,
+			action: {
+				label: 'Confirm',
+				onClick: async () => {
+					const toastId = toast.loading('Initializing logins...');
+
+					try {
+						const response = await fetch(`${API_BASE}/api/logins/initialize`, {
+							method: 'POST',
+						});
+						const data = await response.json();
+
+						if (!response.ok) {
+							throw new Error(data.error || 'Failed to initialize logins');
+						}
+
+						toast.success('Logins initialized successfully.', {
+							id: toastId,
+						});
+					} catch (err) {
+						toast.error('Login initialization failed', {
+							id: toastId,
+							description: err instanceof Error ? err.message : 'Unknown error',
 						});
 					}
 				},
@@ -597,13 +628,22 @@ export default function App() {
 			</div>
 
 			<footer className="footer">
-				<button
-					type="button"
-					className="btn-secondary btn-cleanup"
-					onClick={handleCleanupSoundcloud}
-				>
-					Cleanup SoundCloud
-				</button>
+				<div className="footer-buttons">
+					<button
+						type="button"
+						className="btn-secondary btn-cleanup"
+						onClick={handleInitializeLogins}
+					>
+						Initialize Logins
+					</button>
+					<button
+						type="button"
+						className="btn-secondary btn-cleanup"
+						onClick={handleCleanupSoundcloud}
+					>
+						Cleanup SoundCloud
+					</button>
+				</div>
 				<p>
 					Built for personal use &middot;{' '}
 					<a

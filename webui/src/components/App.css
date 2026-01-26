@@ -557,6 +557,13 @@
 	align-items: center;
 }
 
+.footer-buttons {
+	display: flex;
+	gap: var(--space-md);
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
 .footer p {
 	font-size: 0.85rem;
 	color: var(--text-muted);

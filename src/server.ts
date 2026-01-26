@@ -90,22 +90,12 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 
 		await hypedditDownloader.initialize();
 
-		// Prepare logins (optional, could be controlled by config)
-		jobStore.updateProgress(
-			jobId,
-			'preparing_logins',
-			'Preparing login sessions...',
-			15,
-		);
-		// Unfortunately the login preparation, specifically the captcha handling, is not working in headless mode
-		// await hypedditDownloader.prepareLogins();
-
 		// Download audio
 		jobStore.updateProgress(
 			jobId,
 			'handling_gates',
 			'Processing Hypeddit gates...',
-			20,
+			25,
 		);
 
 		const downloadFilename = await hypedditDownloader.downloadAudio(
@@ -127,7 +117,7 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 			jobId,
 			'processing_audio',
 			'Fetching artwork...',
-			85,
+			90,
 		);
 
 		if (job.track?.artworkUrl) {
@@ -139,7 +129,7 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 		}
 
 		// Mark as ready for metadata editing
-		jobStore.updateProgress(jobId, 'ready', 'Ready for metadata editing', 90);
+		jobStore.updateProgress(jobId, 'ready', 'Ready for metadata editing', 100);
 	} catch (error) {
 		if (hypedditDownloader) {
 			await hypedditDownloader.close();
@@ -214,6 +204,40 @@ const server = Bun.serve({
 					await soundcloudClient.cleanup(false);
 					return jsonResponse({ success: true });
 				} catch (error) {
+					return jsonResponse(
+						{
+							error: error instanceof Error ? error.message : 'Unknown error',
+						},
+						{ status: 500 },
+					);
+				}
+			},
+		},
+
+		// Initialize logins (requires non-headless browser)
+		'/api/logins/initialize': {
+			POST: async () => {
+				let loginDownloader: HypedditDownloader | null = null;
+				try {
+					// Create a new downloader instance with headless: false for login initialization
+					loginDownloader = new HypedditDownloader({
+						name: HYPEDDIT_NAME,
+						email: HYPEDDIT_EMAIL,
+						comment: SC_COMMENT,
+						headless: false,
+					});
+
+					await loginDownloader.initialize();
+					await loginDownloader.prepareLogins();
+					await loginDownloader.close();
+					loginDownloader = null;
+
+					return jsonResponse({ success: true });
+				} catch (error) {
+					if (loginDownloader) {
+						await loginDownloader.close();
+						loginDownloader = null;
+					}
 					return jsonResponse(
 						{
 							error: error instanceof Error ? error.message : 'Unknown error',

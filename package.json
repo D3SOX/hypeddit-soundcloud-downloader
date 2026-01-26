@@ -15,6 +15,7 @@
   "scripts": {
     "start": "bun run .",
     "start:server": "bun run ./src/server.ts",
+    "dev:server": "bun --watch ./src/server.ts",
     "lint": "biome check ./src",
     "lint:fix": "biome check --fix ./src"
   },
