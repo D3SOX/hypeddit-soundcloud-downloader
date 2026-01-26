@@ -1,5 +1,7 @@
 ---
+import { Toaster } from 'sonner';
 import '../styles/global.css';
+import 'sonner/dist/styles.css';
 ---
 
 <!doctype html>
@@ -17,6 +19,7 @@ import '../styles/global.css';
 		<main class="main-container">
 			<slot />
 		</main>
+		<Toaster client:load richColors closeButton theme="dark" />
 	</body>
 </html>
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import './App.css';
 
 type Step = 'url' | 'hypeddit' | 'progress' | 'metadata' | 'complete';
@@ -61,7 +62,6 @@ export default function App() {
 	});
 	const [customArtwork, setCustomArtwork] = useState<File | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
-	const [isCleaningUp, setIsCleaningUp] = useState(false);
 	const formatPercent = (value?: number) => Math.round(value ?? 0);
 
 	// Create job with SoundCloud URL
@@ -261,34 +261,48 @@ export default function App() {
 	};
 
 	const handleCleanupSoundcloud = async () => {
-		if (isCleaningUp) return;
-		const confirmed = window.confirm(
-			'Cleanup your SoundCloud account? This will unfollow, unlike, and delete comments/reposts.',
-		);
-		if (!confirmed) return;
+		toast('Cleanup your SoundCloud account?', {
+			description: 'This will unfollow, unlike, and delete comments/reposts.',
+			closeButton: false,
+			duration: Infinity,
+			action: {
+				label: 'Confirm',
+				onClick: async () => {
+					setJob((prev) => ({ ...prev, error: null }));
 
-		setIsCleaningUp(true);
-		setJob((prev) => ({ ...prev, error: null }));
+					const toastId = toast.loading('Cleaning up SoundCloud account...');
 
-		try {
-			const response = await fetch(`${API_BASE}/api/soundcloud/cleanup`, {
-				method: 'POST',
-			});
-			const data = await response.json();
+					try {
+						const response = await fetch(`${API_BASE}/api/soundcloud/cleanup`, {
+							method: 'POST',
+						});
+						const data = await response.json();
 
-			if (!response.ok) {
-				throw new Error(data.error || 'Failed to cleanup SoundCloud account');
-			}
+						if (!response.ok) {
+							throw new Error(data.error || 'Failed to cleanup SoundCloud account');
+						}
 
-			window.alert('SoundCloud account cleanup completed.');
-		} catch (err) {
-			setJob((prev) => ({
-				...prev,
-				error: err instanceof Error ? err.message : 'Unknown error',
-			}));
-		} finally {
-			setIsCleaningUp(false);
-		}
+						toast.success('SoundCloud account cleanup completed.', {
+							id: toastId,
+						});
+					} catch (err) {
+						const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+						setJob((prev) => ({
+							...prev,
+							error: errorMessage,
+						}));
+						toast.error('Cleanup failed', {
+							id: toastId,
+							description: errorMessage,
+						});
+					}
+				},
+			},
+			cancel: {
+				label: 'Cancel',
+				onClick: () => {},
+			},
+		});
 	};
 
 	// Refresh job state (for metadata step)
@@ -587,9 +601,8 @@ export default function App() {
 					type="button"
 					className="btn-secondary btn-cleanup"
 					onClick={handleCleanupSoundcloud}
-					disabled={isCleaningUp}
 				>
-					{isCleaningUp ? 'Cleaning...' : 'Cleanup SoundCloud'}
+					Cleanup SoundCloud
 				</button>
 				<p>
 					Built for personal use &middot;{' '}
