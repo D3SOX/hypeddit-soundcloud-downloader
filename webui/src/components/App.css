@@ -40,16 +40,10 @@
 	font-size: 0.9rem;
 }
 
-.header-actions {
-	position: static;
-	display: flex;
-	justify-content: center;
-	margin-bottom: var(--space-md);
-}
-
-.btn-cleanup {
+.btn-secondary.btn-cleanup {
 	padding: var(--space-sm) var(--space-md);
-	font-size: 0.85rem;
+	font-size: 0.65rem;
+	border-width: 1px;
 }
 
 /* Steps indicator */
@@ -557,6 +551,10 @@
 	text-align: center;
 	padding-top: var(--space-xl);
 	border-top: 1px solid var(--border-subtle);
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-md);
+	align-items: center;
 }
 
 .footer p {

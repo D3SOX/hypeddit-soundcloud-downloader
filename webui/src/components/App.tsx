@@ -307,16 +307,6 @@ export default function App() {
 
 	return (
 		<div className="app">
-			<div className="header-actions">
-				<button
-					type="button"
-					className="btn-secondary btn-cleanup"
-					onClick={handleCleanupSoundcloud}
-					disabled={isCleaningUp}
-				>
-					{isCleaningUp ? 'Cleaning...' : 'Cleanup SoundCloud'}
-				</button>
-			</div>
 			<header className="header">
 				<div className="logo">
 					<span className="logo-icon">&#9654;</span>
@@ -389,9 +379,11 @@ export default function App() {
 							<input
 								id="soundcloud-url"
 								type="url"
+								name="soundcloud-track-url"
 								value={soundcloudUrl}
 								onChange={(e) => setSoundcloudUrl(e.target.value)}
 								placeholder="https://soundcloud.com/artist/track"
+								autoComplete="off"
 								required
 								disabled={isLoading}
 							/>
@@ -423,9 +415,11 @@ export default function App() {
 							<input
 								id="hypeddit-url"
 								type="url"
+								name="hypeddit-url"
 								value={hypedditUrlInput}
 								onChange={(e) => setHypedditUrlInput(e.target.value)}
 								placeholder="https://hypeddit.com/..."
+								autoComplete="off"
 								required
 								disabled={isLoading}
 							/>
@@ -589,6 +583,14 @@ export default function App() {
 			</div>
 
 			<footer className="footer">
+				<button
+					type="button"
+					className="btn-secondary btn-cleanup"
+					onClick={handleCleanupSoundcloud}
+					disabled={isCleaningUp}
+				>
+					{isCleaningUp ? 'Cleaning...' : 'Cleanup SoundCloud'}
+				</button>
 				<p>
 					Built for personal use &middot;{' '}
 					<a
