@@ -280,8 +280,27 @@ export default function App() {
 							throw new Error(data.error || 'Failed to cleanup SoundCloud account');
 						}
 
+						const parts: string[] = [];
+						if (data.unfollowed > 0) {
+							parts.push(`${data.unfollowed} unfollow${data.unfollowed === 1 ? '' : 's'}`);
+						}
+						if (data.unliked > 0) {
+							parts.push(`${data.unliked} unlike${data.unliked === 1 ? '' : 's'}`);
+						}
+						if (data.deletedComments > 0) {
+							parts.push(`${data.deletedComments} comment${data.deletedComments === 1 ? '' : 's'} deleted`);
+						}
+						if (data.deletedReposts > 0) {
+							parts.push(`${data.deletedReposts} repost${data.deletedReposts === 1 ? '' : 's'} deleted`);
+						}
+
+						const description = parts.length > 0
+							? parts.join(', ')
+							: 'No items to clean up.';
+
 						toast.success('SoundCloud account cleanup completed.', {
 							id: toastId,
+							description,
 						});
 					} catch (err) {
 						toast.error('Cleanup failed', {

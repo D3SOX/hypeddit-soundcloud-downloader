@@ -201,8 +201,14 @@ const server = Bun.serve({
 		'/api/soundcloud/cleanup': {
 			POST: async () => {
 				try {
-					await soundcloudClient.cleanup(false);
-					return jsonResponse({ success: true });
+					const result = await soundcloudClient.cleanup(false);
+					if (!result) {
+						return jsonResponse({
+							success: false,
+							message: 'Cleanup cancelled',
+						});
+					}
+					return jsonResponse({ success: true, ...result });
 				} catch (error) {
 					return jsonResponse(
 						{

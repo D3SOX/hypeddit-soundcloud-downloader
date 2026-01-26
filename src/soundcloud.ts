@@ -66,7 +66,15 @@ export class SoundcloudClient {
 		return getDefaultMetadata(track);
 	}
 
-	async cleanup(prompt = true) {
+	async cleanup(prompt = true): Promise<
+		| {
+				unfollowed: number;
+				unliked: number;
+				deletedComments: number;
+				deletedReposts: number;
+		  }
+		| undefined
+	> {
 		if (prompt) {
 			const cleanupSoundcloudConfirm = await confirm({
 				message:
@@ -86,26 +94,35 @@ export class SoundcloudClient {
 			);
 		}
 
-		await this.unfollowAllUsers(me.id);
-		await this.unlikeAllTracks(me.id);
-		await this.deleteAllComments(me.id);
-		await this.deleteAllReposts();
+		const unfollowed = await this.unfollowAllUsers(me.id);
+		const unliked = await this.unlikeAllTracks(me.id);
+		const deletedComments = await this.deleteAllComments(me.id);
+		const deletedReposts = await this.deleteAllReposts();
+
+		return {
+			unfollowed,
+			unliked,
+			deletedComments,
+			deletedReposts,
+		};
 	}
 
-	private async unfollowAllUsers(meId: string) {
+	private async unfollowAllUsers(meId: string): Promise<number> {
 		const { collection: following } = await this.soundcloud.api.getV2(
 			`users/${meId}/followings`,
 		);
 		if (!following || !following.length) {
 			console.log('No users to unfollow');
-			return;
+			return 0;
 		}
 		console.log(`Found ${following.length} users to unfollow`);
 
+		let count = 0;
 		for (const user of following) {
 			try {
 				await this.soundcloud.api.deleteV2(`me/followings/${user.id}`);
 				console.log(`✓ Unfollowed ${user.username} (${user.id})`);
+				count++;
 			} catch (error) {
 				console.error(
 					`✗ Failed to unfollow ${user.username} (${user.id}):`,
@@ -113,24 +130,27 @@ export class SoundcloudClient {
 				);
 			}
 		}
+		return count;
 	}
 
-	private async unlikeAllTracks(meId: string) {
+	private async unlikeAllTracks(meId: string): Promise<number> {
 		const { collection: likes } = await this.soundcloud.api.getV2(
 			`users/${meId}/likes`,
 		);
 		if (!likes || !likes.length) {
 			console.log('No tracks to unlike');
-			return;
+			return 0;
 		}
 		console.log(`Found ${likes.length} tracks to unlike`);
 
+		let count = 0;
 		for (const like of likes) {
 			try {
 				await this.soundcloud.api.deleteV2(
 					`users/${meId}/track_likes/${like.track.id}`,
 				);
 				console.log(`✓ Unliked ${like.track.title} (${like.track.id})`);
+				count++;
 			} catch (error) {
 				console.error(
 					`✗ Failed to unlike ${like.track.title} (${like.track.id}):`,
@@ -138,46 +158,53 @@ export class SoundcloudClient {
 				);
 			}
 		}
+		return count;
 	}
 
-	private async deleteAllComments(meId: string) {
+	private async deleteAllComments(meId: string): Promise<number> {
 		const { collection: comments } = await this.soundcloud.api.getV2(
 			`users/${meId}/comments`,
 		);
 		if (!comments || !comments.length) {
 			console.log('No comments to delete');
-			return;
+			return 0;
 		}
 		console.log(`Found ${comments.length} comments to delete`);
 
+		let count = 0;
 		for (const comment of comments) {
 			try {
 				await this.soundcloud.api.deleteV2(`comments/${comment.id}`);
 				console.log(`✓ Deleted comment ${comment.id}`);
+				count++;
 			} catch (error) {
 				console.error(`✗ Failed to delete comment ${comment.id}:`, error);
 			}
 		}
+		return count;
 	}
 
-	private async deleteAllReposts() {
+	private async deleteAllReposts(): Promise<number> {
 		const { collection: reposts } = await this.soundcloud.api.getV2(
 			`me/track_reposts/ids`,
 			{ limit: 200 },
 		);
 		if (!reposts || !reposts.length) {
 			console.log('No reposts to delete');
-			return;
+			return 0;
 		}
 		console.log(`Found ${reposts.length} reposts to delete`);
 
+		let count = 0;
 		for (const repost of reposts) {
 			try {
 				await this.soundcloud.api.deleteV2(`me/track_reposts/${repost}`);
 				console.log(`✓ Deleted repost ${repost}`);
+				count++;
 			} catch (error) {
 				console.error(`✗ Failed to delete repost ${repost}:`, error);
 			}
 		}
+		return count;
 	}
 }
