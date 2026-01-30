@@ -14,11 +14,9 @@ import {
 	validateSoundcloudUrl,
 } from './utils';
 
-// Initialize binaries
 const ffmpegBin = await getFfmpegBin();
 const ffprobeBin = await getFfprobeBin();
 
-// Environment validation
 function getRequiredEnv(name: string): string {
 	const value = process.env[name];
 	if (!value) {
@@ -31,16 +29,11 @@ const SC_COMMENT = getRequiredEnv('SC_COMMENT');
 const HYPEDDIT_NAME = getRequiredEnv('HYPEDDIT_NAME');
 const HYPEDDIT_EMAIL = getRequiredEnv('HYPEDDIT_EMAIL');
 
-// Initialize clients
 const soundcloudClient = new SoundcloudClient();
 const audioProcessor = new AudioProcessor(ffmpegBin, ffprobeBin);
 
-// Shared downloader instance (single user assumption)
 let hypedditDownloader: HypedditDownloader | null = null;
 
-/**
- * Converts SoundcloudTrack to a serializable format
- */
 function serializeTrack(track: SoundcloudTrack): Job['track'] {
 	return {
 		title: track.title,
@@ -61,15 +54,11 @@ function serializeTrack(track: SoundcloudTrack): Job['track'] {
 	};
 }
 
-/**
- * Runs the download process for a job
- */
 async function runDownloadProcess(jobId: string): Promise<void> {
 	const job = jobStore.get(jobId);
 	if (!job || !job.hypedditUrl) return;
 
 	try {
-		// Initialize browser
 		jobStore.updateProgress(
 			jobId,
 			'initializing_browser',
@@ -84,14 +73,12 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 			headless: true,
 		});
 
-		// Set up progress callback
 		hypedditDownloader.setProgressCallback((stage, message, percent, extra) => {
 			jobStore.updateProgress(jobId, stage, message, percent, extra);
 		});
 
 		await hypedditDownloader.initialize();
 
-		// Download audio
 		jobStore.updateProgress(
 			jobId,
 			'handling_gates',
@@ -110,10 +97,8 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 			return;
 		}
 
-		// Update job with download info
 		jobStore.update(jobId, { downloadFilename });
 
-		// Fetch artwork
 		jobStore.updateProgress(
 			jobId,
 			'processing_audio',
@@ -129,7 +114,6 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 			});
 		}
 
-		// Mark as ready for metadata editing
 		jobStore.updateProgress(jobId, 'ready', 'Ready for metadata editing', 100);
 	} catch (error) {
 		if (hypedditDownloader) {
@@ -142,14 +126,12 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 	}
 }
 
-// CORS headers for all responses
 const corsHeaders: Record<string, string> = {
 	'Access-Control-Allow-Origin': '*',
 	'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 	'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-// Helper to create JSON response with CORS headers
 function jsonResponse(data: unknown, options?: { status?: number }): Response {
 	return Response.json(data, {
 		status: options?.status || 200,
@@ -157,7 +139,6 @@ function jsonResponse(data: unknown, options?: { status?: number }): Response {
 	});
 }
 
-// Helper to create file/binary response with CORS headers
 function fileResponse(
 	body: BodyInit | null,
 	headers: Record<string, string>,
@@ -167,7 +148,6 @@ function fileResponse(
 	});
 }
 
-// Helper for SSE response with CORS headers
 function sseResponse(stream: ReadableStream): Response {
 	return new Response(stream, {
 		headers: {
@@ -192,13 +172,11 @@ const server = Bun.serve({
 					headers: corsHeaders,
 				}),
 		},
-		// Health check
 		'/': () =>
 			new Response('Hypeddit SoundCloud Downloader API is running!', {
 				headers: corsHeaders,
 			}),
 
-		// Cleanup SoundCloud account (unfollow/unlike/delete)
 		'/api/soundcloud/cleanup': {
 			POST: async () => {
 				try {
@@ -221,12 +199,10 @@ const server = Bun.serve({
 			},
 		},
 
-		// Initialize logins (requires non-headless browser)
 		'/api/logins/initialize': {
 			POST: async () => {
 				let loginDownloader: HypedditDownloader | null = null;
 				try {
-					// Create a new downloader instance with headless: false for login initialization
 					loginDownloader = new HypedditDownloader({
 						name: HYPEDDIT_NAME,
 						email: HYPEDDIT_EMAIL,
@@ -255,7 +231,6 @@ const server = Bun.serve({
 			},
 		},
 
-		// Create a new job with SoundCloud URL
 		'/api/job': {
 			POST: async (req) => {
 				try {
@@ -274,7 +249,6 @@ const server = Bun.serve({
 						return jsonResponse({ error: validation }, { status: 400 });
 					}
 
-					// Create job
 					const job = jobStore.create(soundcloudUrl);
 					jobStore.updateProgress(
 						job.id,
@@ -283,7 +257,6 @@ const server = Bun.serve({
 						5,
 					);
 
-					// Fetch track info
 					let track: SoundcloudTrack;
 					try {
 						track = await soundcloudClient.getTrack(soundcloudUrl);
@@ -301,11 +274,9 @@ const server = Bun.serve({
 						);
 					}
 
-					// Extract hypeddit URL
 					const hypedditUrl = extractHypedditUrl(track);
 					const defaultMetadata = getDefaultMetadata(track);
 
-					// Update job with track info
 					const updatedJob = jobStore.update(job.id, {
 						track: serializeTrack(track),
 						hypedditUrl: hypedditUrl?.url ?? null,
@@ -344,7 +315,6 @@ const server = Bun.serve({
 			},
 		},
 
-		// Set Hypeddit URL for a job (if not auto-detected)
 		'/api/job/:id/hypeddit': {
 			POST: async (req) => {
 				try {
@@ -384,7 +354,6 @@ const server = Bun.serve({
 			},
 		},
 
-		// Start the download process
 		'/api/job/:id/start': {
 			POST: async (req) => {
 				try {
@@ -413,7 +382,6 @@ const server = Bun.serve({
 						);
 					}
 
-					// Start download process in background
 					runDownloadProcess(jobId);
 
 					return jsonResponse({ success: true, message: 'Download started' });
@@ -428,7 +396,6 @@ const server = Bun.serve({
 			},
 		},
 
-		// SSE endpoint for job progress
 		'/api/job/:id/events': {
 			GET: (req) => {
 				const jobId = req.params.id;
@@ -438,26 +405,21 @@ const server = Bun.serve({
 					return jsonResponse({ error: 'Job not found' }, { status: 404 });
 				}
 
-				// Create SSE stream
 				const stream = new ReadableStream({
 					start(controller) {
 						const encoder = new TextEncoder();
 
-						// Send initial state
 						const initialData = `data: ${JSON.stringify(job.progress)}\n\n`;
 						controller.enqueue(encoder.encode(initialData));
 
-						// Subscribe to updates
 						const unsubscribe = jobStore.subscribe(jobId, (progress) => {
 							const data = `data: ${JSON.stringify(progress)}\n\n`;
 							try {
 								controller.enqueue(encoder.encode(data));
 							} catch {
-								// Stream closed
 								unsubscribe();
 							}
 
-							// Close stream when job is complete or errored
 							if (progress.stage === 'ready' || progress.stage === 'error') {
 								setTimeout(() => {
 									try {
@@ -470,7 +432,6 @@ const server = Bun.serve({
 							}
 						});
 
-						// Handle client disconnect
 						req.signal.addEventListener('abort', () => {
 							unsubscribe();
 							try {
@@ -486,7 +447,6 @@ const server = Bun.serve({
 			},
 		},
 
-		// Get job status
 		'/api/job/:id': {
 			GET: (req) => {
 				const jobId = req.params.id;
@@ -510,7 +470,6 @@ const server = Bun.serve({
 			},
 		},
 
-		// Get artwork for a job
 		'/api/job/:id/artwork': {
 			GET: (req) => {
 				const jobId = req.params.id;
@@ -537,7 +496,6 @@ const server = Bun.serve({
 			},
 		},
 
-		// Process audio with metadata
 		'/api/job/:id/metadata': {
 			POST: async (req) => {
 				try {
@@ -588,7 +546,6 @@ const server = Bun.serve({
 						95,
 					);
 
-					// Use custom artwork or job artwork
 					const artwork =
 						customArtwork ||
 						(job.artworkBuffer && job.artworkFileName
@@ -605,12 +562,11 @@ const server = Bun.serve({
 						);
 					}
 
-					// Process audio
 					const outputPath = await audioProcessor.processAudio(
 						job.downloadFilename,
 						metadata,
 						artwork,
-						'always', // Always delete lossless for web
+						'always',
 					);
 
 					const outputFilename = outputPath.split('/').pop() || outputPath;
@@ -638,7 +594,6 @@ const server = Bun.serve({
 			},
 		},
 
-		// Download processed file
 		'/api/job/:id/file': {
 			GET: (req) => {
 				const jobId = req.params.id;
