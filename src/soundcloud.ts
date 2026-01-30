@@ -1,8 +1,7 @@
 import { join } from 'node:path';
 import { confirm } from '@inquirer/prompts';
 import Soundcloud, { type SoundcloudTrack } from 'soundcloud.ts';
-import { extractHypedditUrl, getDefaultMetadata } from './flowUtils';
-import type { Metadata } from './types';
+import { extractHypedditUrl } from './utils';
 
 export class SoundcloudClient {
 	private soundcloud: Soundcloud;
@@ -27,19 +26,20 @@ export class SoundcloudClient {
 	async getHypedditURL(track: SoundcloudTrack) {
 		const hypedditUrl = extractHypedditUrl(track);
 		if (hypedditUrl) {
-			if (track.purchase_url?.startsWith('https://hypeddit.com/')) {
+			if (hypedditUrl.type === 'purchase_url') {
 				console.log(
 					'Found Hypeddit URL from SoundCloud track purchase URL:',
-					hypedditUrl,
+					hypedditUrl.url,
 				);
 			} else {
 				console.log(
 					'Found Hypeddit URL from SoundCloud track description:',
-					hypedditUrl,
+					hypedditUrl.url,
 				);
 			}
+			return hypedditUrl.url;
 		}
-		return hypedditUrl;
+		return null;
 	}
 
 	async fetchArtwork(
@@ -60,10 +60,6 @@ export class SoundcloudClient {
 		}
 		const buffer = await response.arrayBuffer();
 		return { buffer, fileName };
-	}
-
-	static getMetadata(track: SoundcloudTrack): Metadata {
-		return getDefaultMetadata(track);
 	}
 
 	async cleanup(prompt = true): Promise<

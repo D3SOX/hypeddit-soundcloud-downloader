@@ -1,17 +1,18 @@
 import { join } from 'node:path';
 import type { SoundcloudTrack } from 'soundcloud.ts';
 import { AudioProcessor } from './audioProcessor';
-import {
-	extractHypedditUrl,
-	getDefaultMetadata,
-	validateHypedditUrl,
-	validateSoundcloudUrl,
-} from './flowUtils';
 import { HypedditDownloader } from './hypeddit';
 import { jobStore } from './jobStore';
 import { SoundcloudClient } from './soundcloud';
 import type { Job, Metadata } from './types';
-import { getFfmpegBin, getFfprobeBin } from './utils';
+import {
+	extractHypedditUrl,
+	getDefaultMetadata,
+	getFfmpegBin,
+	getFfprobeBin,
+	validateHypedditUrl,
+	validateSoundcloudUrl,
+} from './utils';
 
 // Initialize binaries
 const ffmpegBin = await getFfmpegBin();
@@ -305,9 +306,9 @@ const server = Bun.serve({
 					const defaultMetadata = getDefaultMetadata(track);
 
 					// Update job with track info
-					jobStore.update(job.id, {
+					const updatedJob = jobStore.update(job.id, {
 						track: serializeTrack(track),
-						hypedditUrl,
+						hypedditUrl: hypedditUrl?.url ?? null,
 						defaultMetadata,
 						progress: {
 							stage: hypedditUrl ? 'pending' : 'waiting_hypeddit',
@@ -318,7 +319,12 @@ const server = Bun.serve({
 						},
 					});
 
-					const updatedJob = jobStore.get(job.id)!;
+					if (!updatedJob) {
+						return jsonResponse(
+							{ error: 'Job not found after update' },
+							{ status: 500 },
+						);
+					}
 
 					return jsonResponse({
 						jobId: job.id,
@@ -583,12 +589,16 @@ const server = Bun.serve({
 					);
 
 					// Use custom artwork or job artwork
-					const artwork = customArtwork || {
-						buffer: job.artworkBuffer!,
-						fileName: job.artworkFileName!,
-					};
+					const artwork =
+						customArtwork ||
+						(job.artworkBuffer && job.artworkFileName
+							? {
+									buffer: job.artworkBuffer,
+									fileName: job.artworkFileName,
+								}
+							: null);
 
-					if (!artwork.buffer) {
+					if (!artwork?.buffer) {
 						return jsonResponse(
 							{ error: 'No artwork available' },
 							{ status: 400 },

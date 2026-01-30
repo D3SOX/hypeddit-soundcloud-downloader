@@ -2,14 +2,14 @@ import { basename, join } from 'node:path';
 import { confirm, input } from '@inquirer/prompts';
 import { execa } from 'execa';
 import type { SoundcloudTrack } from 'soundcloud.ts';
+import type { Metadata } from './types';
 import {
 	getDefaultMetadata,
 	isLosslessFormat,
 	isMp3Format,
 	losslessToMp3Filename,
-} from './flowUtils';
-import type { Metadata } from './types';
-import { REPO_URL } from './utils';
+	REPO_URL,
+} from './utils';
 
 export class AudioProcessor {
 	private ffmpegBin: string;
@@ -20,10 +20,6 @@ export class AudioProcessor {
 		this.ffprobeBin = ffprobeBin;
 	}
 
-	/**
-	 * Reads metadata from an MP3 file using ffprobe
-	 * Made public for Web UI usage
-	 */
 	async readMp3Metadata(inputPath: string): Promise<Metadata | null> {
 		try {
 			const { stdout } = await execa(this.ffprobeBin, [
