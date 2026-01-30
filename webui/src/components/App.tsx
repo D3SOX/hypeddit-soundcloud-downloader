@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import './App.css';
 
@@ -62,7 +62,65 @@ export default function App() {
 	});
 	const [customArtwork, setCustomArtwork] = useState<File | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
+	const cleanupToastShownRef = useRef(false);
 	const formatPercent = (value?: number) => Math.round(value ?? 0);
+
+	const showCleanupSoundcloudToast = useCallback(() => {
+		toast('Cleanup your SoundCloud account?', {
+			description: 'This will unfollow, unlike, and delete comments/reposts.',
+			closeButton: false,
+			duration: Infinity,
+			action: {
+				label: 'Confirm',
+				onClick: async () => {
+					const toastId = toast.loading('Cleaning up SoundCloud account...');
+
+					try {
+						const response = await fetch(`${API_BASE}/api/soundcloud/cleanup`, {
+							method: 'POST',
+						});
+						const data = await response.json();
+
+						if (!response.ok) {
+							throw new Error(data.error || 'Failed to cleanup SoundCloud account');
+						}
+
+						const parts: string[] = [];
+						if (data.unfollowed > 0) {
+							parts.push(`${data.unfollowed} unfollow${data.unfollowed === 1 ? '' : 's'}`);
+						}
+						if (data.unliked > 0) {
+							parts.push(`${data.unliked} unlike${data.unliked === 1 ? '' : 's'}`);
+						}
+						if (data.deletedComments > 0) {
+							parts.push(`${data.deletedComments} comment${data.deletedComments === 1 ? '' : 's'} deleted`);
+						}
+						if (data.deletedReposts > 0) {
+							parts.push(`${data.deletedReposts} repost${data.deletedReposts === 1 ? '' : 's'} deleted`);
+						}
+
+						const description = parts.length > 0
+							? parts.join(', ')
+							: 'No items to clean up.';
+
+						toast.success('SoundCloud account cleanup completed.', {
+							id: toastId,
+							description,
+						});
+					} catch (err) {
+						toast.error('Cleanup failed', {
+							id: toastId,
+							description: err instanceof Error ? err.message : 'Unknown error',
+						});
+					}
+				},
+			},
+			cancel: {
+				label: 'Cancel',
+				onClick: () => {},
+			},
+		});
+	}, []);
 
 	// Create job with SoundCloud URL
 	const handleSoundcloudSubmit = async (e: React.FormEvent) => {
@@ -153,6 +211,7 @@ export default function App() {
 	// Start download process
 	const startDownload = useCallback(async (jobId: string) => {
 		setStep('progress');
+		cleanupToastShownRef.current = false;
 
 		try {
 			const response = await fetch(`${API_BASE}/api/job/${jobId}/start`, {
@@ -173,6 +232,14 @@ export default function App() {
 				const progress: JobProgress = JSON.parse(event.data);
 				setJob((prev) => ({ ...prev, progress }));
 
+				if (progress.stage === 'downloading' &&
+					(progress.downloadBytes || progress.totalBytes) &&
+					!cleanupToastShownRef.current
+				) {
+					showCleanupSoundcloudToast();
+					cleanupToastShownRef.current = true;
+				}
+
 				if (progress.stage === 'ready') {
 					eventSource.close();
 					setStep('metadata');
@@ -191,7 +258,7 @@ export default function App() {
 				error: err instanceof Error ? err.message : 'Unknown error',
 			}));
 		}
-	}, []);
+	}, [showCleanupSoundcloudToast]);
 
 	// Process metadata and finalize
 	const handleMetadataSubmit = async (e: React.FormEvent) => {
@@ -258,63 +325,6 @@ export default function App() {
 		setMetadata({ title: '', artist: '', album: '', genre: '' });
 		setCustomArtwork(null);
 		setStep('url');
-	};
-
-	const handleCleanupSoundcloud = async () => {
-		toast('Cleanup your SoundCloud account?', {
-			description: 'This will unfollow, unlike, and delete comments/reposts.',
-			closeButton: false,
-			duration: Infinity,
-			action: {
-				label: 'Confirm',
-				onClick: async () => {
-					const toastId = toast.loading('Cleaning up SoundCloud account...');
-
-					try {
-						const response = await fetch(`${API_BASE}/api/soundcloud/cleanup`, {
-							method: 'POST',
-						});
-						const data = await response.json();
-
-						if (!response.ok) {
-							throw new Error(data.error || 'Failed to cleanup SoundCloud account');
-						}
-
-						const parts: string[] = [];
-						if (data.unfollowed > 0) {
-							parts.push(`${data.unfollowed} unfollow${data.unfollowed === 1 ? '' : 's'}`);
-						}
-						if (data.unliked > 0) {
-							parts.push(`${data.unliked} unlike${data.unliked === 1 ? '' : 's'}`);
-						}
-						if (data.deletedComments > 0) {
-							parts.push(`${data.deletedComments} comment${data.deletedComments === 1 ? '' : 's'} deleted`);
-						}
-						if (data.deletedReposts > 0) {
-							parts.push(`${data.deletedReposts} repost${data.deletedReposts === 1 ? '' : 's'} deleted`);
-						}
-
-						const description = parts.length > 0
-							? parts.join(', ')
-							: 'No items to clean up.';
-
-						toast.success('SoundCloud account cleanup completed.', {
-							id: toastId,
-							description,
-						});
-					} catch (err) {
-						toast.error('Cleanup failed', {
-							id: toastId,
-							description: err instanceof Error ? err.message : 'Unknown error',
-						});
-					}
-				},
-			},
-			cancel: {
-				label: 'Cancel',
-				onClick: () => {},
-			},
-		});
 	};
 
 	const handleInitializeLogins = async () => {
@@ -658,7 +668,7 @@ export default function App() {
 					<button
 						type="button"
 						className="btn-secondary btn-cleanup"
-						onClick={handleCleanupSoundcloud}
+						onClick={showCleanupSoundcloudToast}
 					>
 						Cleanup SoundCloud
 					</button>
