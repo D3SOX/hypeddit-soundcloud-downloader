@@ -1,17 +1,40 @@
 import { Presets, SingleBar } from 'cli-progress';
 import puppeteer, { type Browser, type Page } from 'puppeteer';
 import Selectors from './selectors';
-import type { HypedditConfig } from './types';
+import type { HypedditConfig, JobProgress, JobStage } from './types';
 import { loadCookies, REPO_URL, timeout } from './utils';
+
+export type ProgressCallback = (
+	stage: JobStage,
+	message: string,
+	percent: number,
+	extra?: Partial<JobProgress>,
+) => void;
 
 export class HypedditDownloader {
 	private browser!: Browser; // null-asserted because it is initialized async and every call to it comes logically after the init
 	private downloadFilename: string | null = null;
 	private config: HypedditConfig;
 	private spotifyCookiesExists = false;
+	private progressCallback: ProgressCallback | null = null;
 
 	constructor(config: HypedditConfig) {
 		this.config = config;
+	}
+
+	setProgressCallback(callback: ProgressCallback): void {
+		this.progressCallback = callback;
+	}
+
+	private emitProgress(
+		stage: JobStage,
+		message: string,
+		percent: number,
+		extra?: Partial<JobProgress>,
+	): void {
+		if (this.progressCallback) {
+			this.progressCallback(stage, message, percent, extra);
+		}
 	}
 
 	async initialize() {
@@ -23,6 +46,9 @@ export class HypedditDownloader {
 				'--disable-setuid-sandbox',
 				'--mute-audio',
 				'--hide-crash-restore-bubble',
+				'--no-first-run',
+				'--no-default-browser-check',
+				'--disable-restore-session-state',
 				'--window-size=1920,1080',
 			],
 		});
@@ -38,18 +64,110 @@ export class HypedditDownloader {
 		}
 	}
 
+	async handlePossibleCaptcha(page: Page) {
+		const captchaContainer = await page.$(
+			Selectors.SOUNDCLOUD_CAPTCHA_CONTAINER,
+		);
+		if (!captchaContainer) {
+			console.log('No captcha found, we can continue');
+			return;
+		}
+		// find iframe
+		const captchaIframe = await page.$(Selectors.SOUNDCLOUD_CAPTCHA_IFRAME);
+		if (!captchaIframe) {
+			throw new Error('Captcha iframe not found');
+		}
+		await timeout(10_000);
+
+		console.log('Captcha iframe found');
+		const frame = await captchaIframe.contentFrame();
+
+		// Wait for slider inside the iframe
+		await frame.waitForSelector(Selectors.SOUNDCLOUD_CAPTCHA_SLIDER, {
+			timeout: 50_000,
+		});
+
+		const slider = await frame.$(Selectors.SOUNDCLOUD_CAPTCHA_SLIDER);
+		if (!slider) {
+			throw new Error('Slider not found');
+		}
+		const iframeBox = await captchaIframe.boundingBox();
+		if (!iframeBox) {
+			throw new Error('Iframe bounding box not found');
+		}
+
+		const sliderBox = await slider.boundingBox();
+		if (!sliderBox) {
+			throw new Error('Slider bounding box not found');
+		}
+
+		const sliderTrack = await frame.$(Selectors.SOUNDCLOUD_CAPTCHA_TRACK);
+		if (!sliderTrack) {
+			throw new Error('Slider track not found');
+		}
+		const trackBox = await sliderTrack.boundingBox();
+		if (!trackBox) {
+			throw new Error('Track bounding box not found');
+		}
+
+		// Calculate absolute coordinates on the main page
+		// Start from the center of the slider handle (iframe position + slider position)
+		const startX = iframeBox.x + sliderBox.x + sliderBox.width / 2;
+		const startY = iframeBox.y + sliderBox.y + sliderBox.height / 2;
+		// End at the right edge of the track (iframe position + track position + track width - half slider width)
+		const endX =
+			iframeBox.x + trackBox.x + trackBox.width - sliderBox.width / 2;
+		const endY = startY; // Keep same Y position
+
+		console.log('Dragging slider from', startX, 'to', endX);
+
+		// Perform the drag using the page's mouse API with absolute coordinates
+		await page.mouse.move(startX, startY); // Move to slider center
+		await page.mouse.down(); // Press mouse button
+		await page.mouse.move(endX, endY, { steps: 20 }); // Smooth movement to the right
+		await timeout(500);
+		await page.mouse.up(); // Release mouse button
+
+		console.log('Drag performed');
+
+		// wait for the captcha to be solved
+		await page.waitForSelector(Selectors.SOUNDCLOUD_CAPTCHA_CONTAINER, {
+			hidden: true,
+		});
+	}
+
 	async prepareLogins() {
 		// for the login to be available from the cookies we have to open the soundcloud page
 		// in a new tab first and do some interaction
 		const soundCloudPage = await this.browser.newPage();
 		soundCloudPage.setViewport({ width: 1920, height: 1080 });
 		await soundCloudPage.goto('https://soundcloud.com/messages');
-		await soundCloudPage.waitForNetworkIdle({ timeout: 30_000, idleTime: 10 });
+		let captchaFrameFound = false;
+		try {
+			await soundCloudPage.waitForSelector(
+				Selectors.SOUNDCLOUD_CAPTCHA_CONTAINER,
+				{ timeout: 30_000 },
+			);
+			captchaFrameFound = true;
+		} catch {
+			// No challenge container frame found, skip captcha handling
+			console.log('No captcha frame found, skipping captcha handling');
+		}
+		if (captchaFrameFound) {
+			await this.handlePossibleCaptcha(soundCloudPage);
+		}
+
+		await soundCloudPage.waitForSelector(Selectors.SOUNDCLOUD_LIBRARY_LINK, {
+			timeout: 30_000,
+		});
 		await Promise.all([
 			soundCloudPage.click(Selectors.SOUNDCLOUD_LIBRARY_LINK),
 			soundCloudPage.waitForNavigation({ waitUntil: 'domcontentloaded' }),
 		]);
-		await soundCloudPage.waitForNetworkIdle({ timeout: 30_000, idleTime: 10 });
+		// wait until page url includes /you/library
+		await soundCloudPage.waitForFunction(() =>
+			window.location.href.includes('/you/library'),
+		);
 		await soundCloudPage.close();
 
 		if (this.spotifyCookiesExists) {
@@ -68,6 +186,8 @@ export class HypedditDownloader {
 
 	async downloadAudio(url: string): Promise<string | null> {
 		console.log('Navigating to Hypeddit post...');
+		this.emitProgress('handling_gates', 'Navigating to Hypeddit post...', 25);
+
 		const page = await this.browser.newPage();
 		await page.setViewport({ width: 1920, height: 1080 });
 		await page.goto(url);
@@ -88,6 +208,14 @@ export class HypedditDownloader {
 		}, Selectors.ALL_STEPS_CHILD_DIVS);
 		console.log('Hypeddit gates found', gateNames);
 
+		const gateLabels: Record<string, string> = {
+			email: 'Email',
+			sc: 'SoundCloud',
+			ig: 'Instagram',
+			sp: 'Spotify',
+			dw: 'Download',
+		};
+
 		const gates: Record<string, (page: Page) => Promise<void>> = {
 			email: (p) => this.handleEmailSlide(p),
 			sc: (p) => this.handleSoundcloudSlide(p),
@@ -95,6 +223,11 @@ export class HypedditDownloader {
 			sp: (p) => this.handleSpotifySlide(p),
 			dw: (p) => this.handleDownloadSlide(p),
 		};
+
+		// Calculate progress per gate (from 30% to 80%)
+		const totalGates = gateNames.filter(Boolean).length;
+		const progressPerGate = totalGates > 0 ? 50 / totalGates : 50;
+		let gateIndex = 0;
 
 		// go through all gate names and call the corresponding gate handler
 		for (const gateName of gateNames) {
@@ -107,9 +240,21 @@ export class HypedditDownloader {
 					`No handler found for gate ${gateName}. Please create an issue about this on ${REPO_URL}/issues`,
 				);
 			}
+			const gateLabel = gateLabels[gateName] || gateName;
+			const currentProgress = 30 + gateIndex * progressPerGate;
+
 			console.log(`Now handling ${gateName} gate...`);
+			this.emitProgress(
+				'handling_gates',
+				`Handling ${gateLabel} gate...`,
+				currentProgress,
+				{ currentGate: gateName },
+			);
+
 			await gate(page);
+
 			console.log(`✓ ${gateName} gate handled successfully`);
+			gateIndex++;
 			await timeout(1_000);
 		}
 
@@ -333,6 +478,7 @@ export class HypedditDownloader {
 			throw new Error('Download button not found');
 		}
 		console.log('Download button found, setting up CDP session...');
+		this.emitProgress('downloading', 'Preparing download...', 75);
 
 		// configure CDP session to allow monitoring download events
 		const client = await page.createCDPSession();
@@ -349,7 +495,7 @@ export class HypedditDownloader {
 			downloadCompleteResolve = resolve;
 		});
 
-		// create progress bar
+		// create progress bar (for CLI)
 		const pBar = new SingleBar(
 			{
 				format:
@@ -371,6 +517,11 @@ export class HypedditDownloader {
 			downloadGuid = event.guid;
 			this.downloadFilename = event.suggestedFilename;
 			console.log('Download started:', this.downloadFilename);
+			this.emitProgress(
+				'downloading',
+				`Downloading ${this.downloadFilename}...`,
+				76,
+			);
 		});
 
 		// listen for download status changes
@@ -379,9 +530,11 @@ export class HypedditDownloader {
 				if (event.state === 'completed') {
 					pBar.stop();
 					console.log('Download completed');
+					this.emitProgress('downloading', 'Download complete', 85);
 					downloadCompleteResolve(this.downloadFilename);
 				} else if (event.state === 'inProgress') {
 					const { receivedBytes, totalBytes } = event;
+
 					if (pBar.isActive) {
 						pBar.update(receivedBytes, {
 							total_mb: Number((totalBytes / 1024 / 1024).toFixed(2)),
@@ -390,6 +543,19 @@ export class HypedditDownloader {
 					} else {
 						pBar.start(totalBytes, receivedBytes, { prefix: 'Downloading' });
 					}
+
+					const downloadPercent =
+						totalBytes > 0 ? receivedBytes / totalBytes : 0;
+					const scaledPercent = 76 + downloadPercent * 8;
+					this.emitProgress(
+						'downloading',
+						`Downloading... ${(receivedBytes / 1024 / 1024).toFixed(1)} / ${(totalBytes / 1024 / 1024).toFixed(1)} MB`,
+						scaledPercent,
+						{
+							downloadBytes: receivedBytes,
+							totalBytes: totalBytes,
+						},
+					);
 				} else if (event.state === 'canceled') {
 					pBar.stop();
 					throw new Error('Download was canceled');

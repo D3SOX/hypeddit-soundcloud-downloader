@@ -32,6 +32,12 @@ Install dependencies
 bun install
 ```
 
+If you want to use the [Web UI](#web-ui) you also need to install the dependencies for it
+```bash
+cd webui
+bun install
+```
+
 ## Setup
 
 ### Environment Variables
@@ -87,6 +93,8 @@ If you plan to download tracks that require Spotify gates, you'll also need Spot
 
 ## Usage
 
+### CLI
+
 Run the tool and follow the prompts.
 ```bash
 bun start
@@ -99,6 +107,16 @@ bun start https://soundcloud.com/artist/track
 ```
 
 The final MP3 file will be saved in the `./downloads` directory with proper metadata and artwork embedded.
+
+### Web UI
+
+There is now also an experimental (vibe-coded) web UI for the tool. You can start it by running
+
+```bash
+bun webui
+```
+
+Wait for Astro to be started. It will then tell you the address it's available on, most likely `http://localhost:4321`.
 
 ## How It Works
 
