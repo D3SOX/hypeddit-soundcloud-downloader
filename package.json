@@ -16,13 +16,16 @@
     "start": "bun run .",
     "start:server": "bun run ./src/server.ts",
     "dev:server": "bun --watch ./src/server.ts",
+    "dev:webui": "cd webui && bun run dev",
+    "webui": "run-p dev:server dev:webui",
     "lint": "biome check ./src",
     "lint:fix": "biome check --fix ./src"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.11",
     "@types/bun": "latest",
-    "@types/cli-progress": "^3.11.6"
+    "@types/cli-progress": "^3.11.6",
+    "npm-run-all": "^4.1.5"
   },
   "peerDependencies": {
     "typescript": "^5.9.3"
