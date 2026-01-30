@@ -22,16 +22,10 @@ export class HypedditDownloader {
 		this.config = config;
 	}
 
-	/**
-	 * Sets a callback for progress updates (used by Web UI)
-	 */
 	setProgressCallback(callback: ProgressCallback): void {
 		this.progressCallback = callback;
 	}
 
-	/**
-	 * Emits a progress update
-	 */
 	private emitProgress(
 		stage: JobStage,
 		message: string,
@@ -541,7 +535,6 @@ export class HypedditDownloader {
 				} else if (event.state === 'inProgress') {
 					const { receivedBytes, totalBytes } = event;
 
-					// Update CLI progress bar
 					if (pBar.isActive) {
 						pBar.update(receivedBytes, {
 							total_mb: Number((totalBytes / 1024 / 1024).toFixed(2)),
@@ -551,7 +544,6 @@ export class HypedditDownloader {
 						pBar.start(totalBytes, receivedBytes, { prefix: 'Downloading' });
 					}
 
-					// Emit progress for Web UI (scale from 76% to 84%)
 					const downloadPercent =
 						totalBytes > 0 ? receivedBytes / totalBytes : 0;
 					const scaledPercent = 76 + downloadPercent * 8;
