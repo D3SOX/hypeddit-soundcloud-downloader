@@ -98,11 +98,7 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 
 		jobStore.update(jobId, { downloadFilename });
 
-		jobStore.updateProgress(
-			jobId,
-			'processing_audio',
-			'Fetching artwork...',
-		);
+		jobStore.updateProgress(jobId, 'processing_audio', 'Fetching artwork...');
 
 		if (job.track?.artworkUrl) {
 			const artwork = await soundcloudClient.fetchArtwork(job.track.artworkUrl);
@@ -569,11 +565,7 @@ const server = Bun.serve({
 					const outputFilename = outputPath.split('/').pop() || outputPath;
 					jobStore.update(jobId, { outputFilename });
 
-					jobStore.updateProgress(
-						jobId,
-						'ready',
-						'Audio processing complete',
-					);
+					jobStore.updateProgress(jobId, 'ready', 'Audio processing complete');
 
 					return jsonResponse({
 						success: true,

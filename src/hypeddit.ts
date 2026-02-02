@@ -1,5 +1,5 @@
 import { mkdir } from 'node:fs/promises';
-import { chromium, type BrowserContext, type Page } from 'playwright';
+import { type BrowserContext, chromium, type Page } from 'playwright';
 import yoctoSpinner from 'yocto-spinner';
 import Selectors from './selectors';
 import type { HypedditConfig, JobProgress, JobStage } from './types';
@@ -242,11 +242,9 @@ export class HypedditDownloader {
 			const gateLabel = gateLabels[gateName] || gateName;
 
 			console.log(`Now handling ${gateName} gate...`);
-			this.emitProgress(
-				'handling_gates',
-				`Handling ${gateLabel} gate...`,
-				{ currentGate: gateName },
-			);
+			this.emitProgress('handling_gates', `Handling ${gateLabel} gate...`, {
+				currentGate: gateName,
+			});
 
 			await gate(page);
 
