@@ -1,8 +1,10 @@
 import { lookpath } from 'find-bin';
-import type { CookieData } from 'puppeteer';
+import type { BrowserContext } from 'playwright';
 import type { SoundcloudTrack } from 'soundcloud.ts';
 import packageJson from '../package.json' with { type: 'json' };
 import type { LocalCookieData, Metadata } from './types';
+
+type SetCookieParam = Parameters<BrowserContext['addCookies']>[0][number];
 
 export const REPO_URL = packageJson.repository.url;
 
@@ -30,12 +32,12 @@ export async function timeout(ms: number) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function loadCookies(filename: string): Promise<CookieData[]> {
+export async function loadCookies(filename: string): Promise<SetCookieParam[]> {
 	const cookiesData: LocalCookieData[] = JSON.parse(
 		await Bun.file(filename).text(),
 	);
 	return cookiesData.map((cookie) => {
-		const puppeteerCookie: CookieData = {
+		const playwrightCookie: SetCookieParam = {
 			name: cookie.name,
 			value: cookie.value,
 			domain: cookie.domain,
@@ -43,19 +45,29 @@ export async function loadCookies(filename: string): Promise<CookieData[]> {
 		};
 
 		if (cookie.expirationDate) {
-			puppeteerCookie.expires = cookie.expirationDate;
+			playwrightCookie.expires = cookie.expirationDate;
 		}
 		if (cookie.httpOnly !== undefined) {
-			puppeteerCookie.httpOnly = cookie.httpOnly;
+			playwrightCookie.httpOnly = cookie.httpOnly;
 		}
 		if (cookie.secure !== undefined) {
-			puppeteerCookie.secure = cookie.secure;
+			playwrightCookie.secure = cookie.secure;
 		}
-		if (cookie.sameSite && cookie.sameSite !== 'unspecified') {
-			puppeteerCookie.sameSite = cookie.sameSite as 'Strict' | 'Lax' | 'None';
+		if (cookie.sameSite) {
+			// Normalize Chrome/extension sameSite values to Playwright's allowed set
+			const raw = cookie.sameSite.toLowerCase();
+			if (raw === 'strict') {
+				playwrightCookie.sameSite = 'Strict';
+			} else if (raw === 'lax') {
+				playwrightCookie.sameSite = 'Lax';
+			} else if (raw === 'none' || raw === 'no_restriction') {
+				// Chrome export sometimes uses 'no_restriction' for None
+				playwrightCookie.sameSite = 'None';
+			}
+			// Any other value (e.g. 'unspecified') is ignored to avoid Playwright errors
 		}
 
-		return puppeteerCookie;
+		return playwrightCookie;
 	});
 }
 

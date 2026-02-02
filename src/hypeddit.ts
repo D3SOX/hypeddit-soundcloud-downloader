@@ -1,5 +1,6 @@
-import { Presets, SingleBar } from 'cli-progress';
-import puppeteer, { type Browser, type Page } from 'puppeteer';
+import { mkdir } from 'node:fs/promises';
+import { type BrowserContext, chromium, type Page } from 'playwright';
+import yoctoSpinner from 'yocto-spinner';
 import Selectors from './selectors';
 import type { HypedditConfig, JobProgress, JobStage } from './types';
 import { loadCookies, REPO_URL, timeout } from './utils';
@@ -7,12 +8,11 @@ import { loadCookies, REPO_URL, timeout } from './utils';
 export type ProgressCallback = (
 	stage: JobStage,
 	message: string,
-	percent: number,
 	extra?: Partial<JobProgress>,
 ) => void;
 
 export class HypedditDownloader {
-	private browser!: Browser; // null-asserted because it is initialized async and every call to it comes logically after the init
+	private browser!: BrowserContext; // null-asserted because it is initialized async and every call to it comes logically after the init
 	private downloadFilename: string | null = null;
 	private config: HypedditConfig;
 	private spotifyCookiesExists = false;
@@ -29,18 +29,16 @@ export class HypedditDownloader {
 	private emitProgress(
 		stage: JobStage,
 		message: string,
-		percent: number,
 		extra?: Partial<JobProgress>,
 	): void {
 		if (this.progressCallback) {
-			this.progressCallback(stage, message, percent, extra);
+			this.progressCallback(stage, message, extra);
 		}
 	}
 
 	async initialize() {
-		this.browser = await puppeteer.launch({
+		this.browser = await chromium.launchPersistentContext('./browser-data', {
 			headless: this.config.headless,
-			userDataDir: './browser-data', // persistent data directory for cookies/login
 			args: [
 				'--no-sandbox',
 				'--disable-setuid-sandbox',
@@ -54,13 +52,16 @@ export class HypedditDownloader {
 		});
 
 		// Load and set cookies at browser context level to make them available to all pages
-		const browserContext = this.browser.defaultBrowserContext();
 		const soundCloudCookies = await loadCookies('soundcloud-cookies.json');
-		await browserContext.setCookie(...soundCloudCookies);
+		if (soundCloudCookies.length > 0) {
+			await this.browser.addCookies(soundCloudCookies);
+		}
 		this.spotifyCookiesExists = await Bun.file('spotify-cookies.json').exists();
 		if (this.spotifyCookiesExists) {
 			const spotifyCookies = await loadCookies('spotify-cookies.json');
-			await browserContext.setCookie(...spotifyCookies);
+			if (spotifyCookies.length > 0) {
+				await this.browser.addCookies(spotifyCookies);
+			}
 		}
 	}
 
@@ -81,6 +82,9 @@ export class HypedditDownloader {
 
 		console.log('Captcha iframe found');
 		const frame = await captchaIframe.contentFrame();
+		if (!frame) {
+			throw new Error('Captcha frame not available');
+		}
 
 		// Wait for slider inside the iframe
 		await frame.waitForSelector(Selectors.SOUNDCLOUD_CAPTCHA_SLIDER, {
@@ -132,7 +136,7 @@ export class HypedditDownloader {
 
 		// wait for the captcha to be solved
 		await page.waitForSelector(Selectors.SOUNDCLOUD_CAPTCHA_CONTAINER, {
-			hidden: true,
+			state: 'hidden',
 		});
 	}
 
@@ -140,7 +144,7 @@ export class HypedditDownloader {
 		// for the login to be available from the cookies we have to open the soundcloud page
 		// in a new tab first and do some interaction
 		const soundCloudPage = await this.browser.newPage();
-		soundCloudPage.setViewport({ width: 1920, height: 1080 });
+		await soundCloudPage.setViewportSize({ width: 1920, height: 1080 });
 		await soundCloudPage.goto('https://soundcloud.com/messages');
 		let captchaFrameFound = false;
 		try {
@@ -172,29 +176,29 @@ export class HypedditDownloader {
 
 		if (this.spotifyCookiesExists) {
 			const spotifyPage = await this.browser.newPage();
-			spotifyPage.setViewport({ width: 1920, height: 1080 });
+			await spotifyPage.setViewportSize({ width: 1920, height: 1080 });
 			await spotifyPage.goto('http://accounts.spotify.com/');
-			await spotifyPage.waitForNetworkIdle({ timeout: 30_000, idleTime: 10 });
+			await spotifyPage.waitForLoadState('networkidle', { timeout: 30_000 });
 			await Promise.all([
 				spotifyPage.click(Selectors.SPOTIFY_ACCOUNT_SETTINGS_LINK),
 				spotifyPage.waitForNavigation({ waitUntil: 'domcontentloaded' }),
 			]);
-			await spotifyPage.waitForNetworkIdle({ timeout: 30_000, idleTime: 10 });
+			await spotifyPage.waitForLoadState('networkidle', { timeout: 30_000 });
 			await spotifyPage.close();
 		}
 	}
 
 	async downloadAudio(url: string): Promise<string | null> {
 		console.log('Navigating to Hypeddit post...');
-		this.emitProgress('handling_gates', 'Navigating to Hypeddit post...', 25);
+		this.emitProgress('handling_gates', 'Navigating to Hypeddit post...');
 
 		const page = await this.browser.newPage();
-		await page.setViewport({ width: 1920, height: 1080 });
-		await page.goto(url);
-		// wait for page to be loaded
-		await page.waitForNetworkIdle({ timeout: 30_000, idleTime: 10 });
+		await page.setViewportSize({ width: 1920, height: 1080 });
+		await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-		await page.waitForSelector(Selectors.DOWNLOAD_PROCESS_BUTTON);
+		await page.waitForSelector(Selectors.DOWNLOAD_PROCESS_BUTTON, {
+			state: 'visible',
+		});
 		// click the download button
 		await page.click(Selectors.DOWNLOAD_PROCESS_BUTTON);
 		await timeout(500);
@@ -224,11 +228,6 @@ export class HypedditDownloader {
 			dw: (p) => this.handleDownloadSlide(p),
 		};
 
-		// Calculate progress per gate (from 30% to 80%)
-		const totalGates = gateNames.filter(Boolean).length;
-		const progressPerGate = totalGates > 0 ? 50 / totalGates : 50;
-		let gateIndex = 0;
-
 		// go through all gate names and call the corresponding gate handler
 		for (const gateName of gateNames) {
 			if (!gateName) {
@@ -241,20 +240,15 @@ export class HypedditDownloader {
 				);
 			}
 			const gateLabel = gateLabels[gateName] || gateName;
-			const currentProgress = 30 + gateIndex * progressPerGate;
 
 			console.log(`Now handling ${gateName} gate...`);
-			this.emitProgress(
-				'handling_gates',
-				`Handling ${gateLabel} gate...`,
-				currentProgress,
-				{ currentGate: gateName },
-			);
+			this.emitProgress('handling_gates', `Handling ${gateLabel} gate...`, {
+				currentGate: gateName,
+			});
 
 			await gate(page);
 
 			console.log(`✓ ${gateName} gate handled successfully`);
-			gateIndex++;
 			await timeout(1_000);
 		}
 
@@ -306,31 +300,20 @@ export class HypedditDownloader {
 		if (!loginButton) {
 			throw new Error('Login button not found');
 		}
-		await loginButton.click();
-		await timeout(1_500);
-
-		// wait for the SoundCloud window to appear (with timeout)
-		let soundCloudWindow: Page | undefined;
-		const maxWaitTime = 5000;
-		const startTime = Date.now();
-		while (!soundCloudWindow && Date.now() - startTime < maxWaitTime) {
-			const pages = await this.browser.pages(true);
-			soundCloudWindow = pages.find((window) =>
-				window.url().includes('soundcloud.com'),
-			);
-			if (!soundCloudWindow) {
-				await timeout(200);
-			}
-		}
-
-		if (!soundCloudWindow) {
+		let soundCloudWindow: Page;
+		try {
+			[soundCloudWindow] = await Promise.all([
+				this.browser.waitForEvent('page', { timeout: 5_000 }),
+				loginButton.click(),
+			]);
+		} catch {
 			throw new Error(
 				'SoundCloud window not found after clicking login button',
 			);
 		}
 		await soundCloudWindow.bringToFront();
-		await soundCloudWindow.setViewport({ width: 1920, height: 1080 });
-		await soundCloudWindow.waitForNetworkIdle({ timeout: 15_000 });
+		await soundCloudWindow.setViewportSize({ width: 1920, height: 1080 });
+		await soundCloudWindow.waitForLoadState('networkidle', { timeout: 15_000 });
 
 		const submitApprovalButton = await soundCloudWindow.waitForSelector(
 			Selectors.SC_SUBMIT_APPROVAL_BUTTON,
@@ -368,23 +351,13 @@ export class HypedditDownloader {
 				break;
 			}
 
-			await page.click(Selectors.IG_STATUS_UNDONE_BUTTON);
-
-			// wait for the Instagram window to appear (with timeout)
-			let instagramWindow: Page | undefined;
-			const maxWaitTime = 5000;
-			const startTime = Date.now();
-			while (!instagramWindow && Date.now() - startTime < maxWaitTime) {
-				const pages = await this.browser.pages(true);
-				instagramWindow = pages.find((window) =>
-					window.url().includes('instagram.com'),
-				);
-				if (!instagramWindow) {
-					await timeout(200);
-				}
-			}
-
-			if (!instagramWindow) {
+			let instagramWindow: Page;
+			try {
+				[instagramWindow] = await Promise.all([
+					this.browser.waitForEvent('page', { timeout: 5_000 }),
+					page.click(Selectors.IG_STATUS_UNDONE_BUTTON),
+				]);
+			} catch {
 				throw new Error('Instagram window not found after clicking button');
 			}
 			await instagramWindow.close();
@@ -395,7 +368,7 @@ export class HypedditDownloader {
 
 			// wait for network to be idle to ensure DOM has updated
 			try {
-				await page.waitForNetworkIdle({ timeout: 3_000 });
+				await page.waitForLoadState('networkidle', { timeout: 3_000 });
 			} catch {
 				// ignore timeout
 			}
@@ -436,33 +409,57 @@ export class HypedditDownloader {
 			}
 		}
 
-		// then we can click the login button
+		// then we can click the login button and wait for a potential popup
 		await page.click(Selectors.SP_LOGIN_BUTTON);
-		// TODO: I think this timeout is the only thing that keeps it working when spotify is already authorized,
-		// TODO: Maybe we should also wait for a window to open in parallel to this and it being closed again?
-		await timeout(1_500);
 
 		// we might need to click the accept button in the new window if the app is not authorized yet
-		const browserWindows = await this.browser.pages(true);
-		const spotifyWindow = browserWindows.find((window) =>
-			window.url().includes('spotify.com'),
-		);
+		let spotifyWindow: Page | null = null;
+		try {
+			spotifyWindow = await this.browser.waitForEvent('page', {
+				timeout: 5_000,
+			});
+		} catch {
+			// No popup opened (e.g. app already authorized) - nothing else to do here
+			spotifyWindow = null;
+		}
+
 		// TODO: we should also try to deauthorize hypeddit from spotify and see if this code still works
 		if (spotifyWindow) {
-			await spotifyWindow.bringToFront();
-			await spotifyWindow.setViewport({ width: 1920, height: 1080 });
-			await spotifyWindow.waitForNetworkIdle({ timeout: 15_000 });
+			// If the popup closed very quickly (e.g. already authorized), just continue.
+			if (spotifyWindow.isClosed()) {
+				console.log(
+					'Spotify popup closed before interaction, assuming already authorized.',
+				);
+				return;
+			}
 
-			await spotifyWindow.waitForSelector(Selectors.SP_AUTH_ACCEPT_BUTTON, {
-				visible: true,
-			});
+			try {
+				await spotifyWindow.bringToFront();
+				await spotifyWindow.setViewportSize({ width: 1920, height: 1080 });
+				await spotifyWindow.waitForLoadState('networkidle', {
+					timeout: 15_000,
+				});
 
-			// then we need to click the login button in the new window
-			await spotifyWindow.click(Selectors.SP_AUTH_ACCEPT_BUTTON);
+				await spotifyWindow.waitForSelector(Selectors.SP_AUTH_ACCEPT_BUTTON, {
+					state: 'visible',
+				});
 
-			// wait for window to close
-			while (!spotifyWindow.isClosed()) {
-				await timeout(100);
+				// then we need to click the login button in the new window
+				await spotifyWindow.click(Selectors.SP_AUTH_ACCEPT_BUTTON);
+
+				// wait for window to close
+				while (!spotifyWindow.isClosed()) {
+					await timeout(100);
+				}
+			} catch (error) {
+				// If the window closed during waiting, treat it as already authorized
+				if (spotifyWindow.isClosed()) {
+					console.log(
+						'Spotify popup closed while waiting, assuming already authorized.',
+					);
+					return;
+				}
+				throw error;
 			}
 		}
 	}
@@ -471,118 +468,47 @@ export class HypedditDownloader {
 		const downloadButton = await page.waitForSelector(
 			Selectors.DW_DOWNLOAD_BUTTON,
 			{
-				visible: true,
+				state: 'visible',
 			},
 		);
 		if (!downloadButton) {
 			throw new Error('Download button not found');
 		}
-		console.log('Download button found, setting up CDP session...');
-		this.emitProgress('downloading', 'Preparing download...', 75);
+		console.log('Download button found, waiting for download to start...');
+		this.emitProgress('downloading', 'Preparing download...');
 
-		// configure CDP session to allow monitoring download events
-		const client = await page.createCDPSession();
-		await client.send('Browser.setDownloadBehavior', {
-			behavior: 'allow',
-			downloadPath: './downloads',
-			eventsEnabled: true,
-		});
+		// ensure downloads directory exists
+		await mkdir('./downloads', { recursive: true });
 
-		// track download state
-		let downloadGuid: string | null = null;
-		let downloadCompleteResolve: (value: string) => void;
-		const downloadCompletePromise = new Promise<string>((resolve) => {
-			downloadCompleteResolve = resolve;
-		});
+		const spinner = yoctoSpinner({ text: 'Downloading...' }).start();
 
-		// create progress bar (for CLI)
-		const pBar = new SingleBar(
-			{
-				format:
-					'{prefix} {bar} {percentage}% | {current_mb}/{total_mb} MB | ETA: {eta_formatted}',
-				hideCursor: true,
-			},
-			{
-				// modern preset
-				barCompleteChar: '█',
-				barIncompleteChar: '░',
-				format: Presets.shades_classic.format,
-			},
-		);
+		try {
+			const [download] = await Promise.all([
+				page.waitForEvent('download'),
+				page.click(Selectors.DW_DOWNLOAD_BUTTON),
+			]);
 
-		console.log('CDP session set up, waiting for download start event...');
-
-		// listen for download start event
-		client.on('Browser.downloadWillBegin', (event) => {
-			downloadGuid = event.guid;
-			this.downloadFilename = event.suggestedFilename;
+			this.downloadFilename = download.suggestedFilename();
 			console.log('Download started:', this.downloadFilename);
+			spinner.text = `Downloading ${this.downloadFilename}...`;
 			this.emitProgress(
 				'downloading',
 				`Downloading ${this.downloadFilename}...`,
-				76,
 			);
-		});
 
-		// listen for download status changes
-		client.on('Browser.downloadProgress', (event) => {
-			if (event.guid === downloadGuid && this.downloadFilename) {
-				if (event.state === 'completed') {
-					pBar.stop();
-					console.log('Download completed');
-					this.emitProgress('downloading', 'Download complete', 85);
-					downloadCompleteResolve(this.downloadFilename);
-				} else if (event.state === 'inProgress') {
-					const { receivedBytes, totalBytes } = event;
-
-					if (pBar.isActive) {
-						pBar.update(receivedBytes, {
-							total_mb: Number((totalBytes / 1024 / 1024).toFixed(2)),
-							current_mb: Number((receivedBytes / 1024 / 1024).toFixed(2)),
-						});
-					} else {
-						pBar.start(totalBytes, receivedBytes, { prefix: 'Downloading' });
-					}
-
-					const downloadPercent =
-						totalBytes > 0 ? receivedBytes / totalBytes : 0;
-					const scaledPercent = 76 + downloadPercent * 8;
-					this.emitProgress(
-						'downloading',
-						`Downloading... ${(receivedBytes / 1024 / 1024).toFixed(1)} / ${(totalBytes / 1024 / 1024).toFixed(1)} MB`,
-						scaledPercent,
-						{
-							downloadBytes: receivedBytes,
-							totalBytes: totalBytes,
-						},
-					);
-				} else if (event.state === 'canceled') {
-					pBar.stop();
-					throw new Error('Download was canceled');
-				}
+			if (!this.downloadFilename) {
+				throw new Error('Download started without a suggested filename');
 			}
-		});
 
-		console.log('Waiting for download start event...');
-		setTimeout(async () => {
-			if (!downloadGuid) {
-				// click button again when download has not started after 10 seconds
-				console.log(
-					'Download not started after 10 seconds, clicking button again...',
-				);
-				await page.click(Selectors.DW_DOWNLOAD_BUTTON);
-			}
-		}, 10_000);
+			const downloadPath = `./downloads/${this.downloadFilename}`;
+			await download.saveAs(downloadPath);
 
-		// click the download button and wait for download to complete
-		await Promise.all([
-			page.click(Selectors.DW_DOWNLOAD_BUTTON),
-			downloadCompletePromise,
-		]);
-
-		console.log('Download complete, detaching CDP session...');
-
-		// clean up CDP session
-		await client.detach();
+			console.log('Download completed:', downloadPath);
+			this.emitProgress('downloading', 'Download complete');
+			spinner.success('Download complete');
+		} catch (err) {
+			spinner.error(err instanceof Error ? err.message : 'Download failed');
+			throw err;
+		}
 	}
 }

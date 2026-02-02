@@ -63,7 +63,6 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 			jobId,
 			'initializing_browser',
 			'Launching browser...',
-			10,
 		);
 
 		hypedditDownloader = new HypedditDownloader({
@@ -73,8 +72,8 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 			headless: true,
 		});
 
-		hypedditDownloader.setProgressCallback((stage, message, percent, extra) => {
-			jobStore.updateProgress(jobId, stage, message, percent, extra);
+		hypedditDownloader.setProgressCallback((stage, message, extra) => {
+			jobStore.updateProgress(jobId, stage, message, extra);
 		});
 
 		await hypedditDownloader.initialize();
@@ -99,12 +98,7 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 
 		jobStore.update(jobId, { downloadFilename });
 
-		jobStore.updateProgress(
-			jobId,
-			'processing_audio',
-			'Fetching artwork...',
-			90,
-		);
+		jobStore.updateProgress(jobId, 'processing_audio', 'Fetching artwork...');
 
 		if (job.track?.artworkUrl) {
 			const artwork = await soundcloudClient.fetchArtwork(job.track.artworkUrl);
@@ -286,7 +280,6 @@ const server = Bun.serve({
 							message: hypedditUrl
 								? 'Ready to start download'
 								: 'Hypeddit URL not found - manual input required',
-							percent: 10,
 						},
 					});
 
@@ -572,12 +565,7 @@ const server = Bun.serve({
 					const outputFilename = outputPath.split('/').pop() || outputPath;
 					jobStore.update(jobId, { outputFilename });
 
-					jobStore.updateProgress(
-						jobId,
-						'ready',
-						'Audio processing complete',
-						100,
-					);
+					jobStore.updateProgress(jobId, 'ready', 'Audio processing complete');
 
 					return jsonResponse({
 						success: true,

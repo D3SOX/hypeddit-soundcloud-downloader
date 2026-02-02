@@ -39,10 +39,7 @@ export type JobStage =
 export interface JobProgress {
 	stage: JobStage;
 	message: string;
-	percent: number;
 	currentGate?: string;
-	downloadBytes?: number;
-	totalBytes?: number;
 }
 
 export interface Job {
