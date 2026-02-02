@@ -1,6 +1,6 @@
 import { mkdir } from 'node:fs/promises';
-import { Presets, SingleBar } from 'cli-progress';
 import { chromium, type BrowserContext, type Page } from 'playwright';
+import yoctoSpinner from 'yocto-spinner';
 import Selectors from './selectors';
 import type { HypedditConfig, JobProgress, JobStage } from './types';
 import { loadCookies, REPO_URL, timeout } from './utils';
@@ -8,7 +8,6 @@ import { loadCookies, REPO_URL, timeout } from './utils';
 export type ProgressCallback = (
 	stage: JobStage,
 	message: string,
-	percent: number,
 	extra?: Partial<JobProgress>,
 ) => void;
 
@@ -30,11 +29,10 @@ export class HypedditDownloader {
 	private emitProgress(
 		stage: JobStage,
 		message: string,
-		percent: number,
 		extra?: Partial<JobProgress>,
 	): void {
 		if (this.progressCallback) {
-			this.progressCallback(stage, message, percent, extra);
+			this.progressCallback(stage, message, extra);
 		}
 	}
 
@@ -192,7 +190,7 @@ export class HypedditDownloader {
 
 	async downloadAudio(url: string): Promise<string | null> {
 		console.log('Navigating to Hypeddit post...');
-		this.emitProgress('handling_gates', 'Navigating to Hypeddit post...', 25);
+		this.emitProgress('handling_gates', 'Navigating to Hypeddit post...');
 
 		const page = await this.browser.newPage();
 		await page.setViewportSize({ width: 1920, height: 1080 });
@@ -230,11 +228,6 @@ export class HypedditDownloader {
 			dw: (p) => this.handleDownloadSlide(p),
 		};
 
-		// Calculate progress per gate (from 30% to 80%)
-		const totalGates = gateNames.filter(Boolean).length;
-		const progressPerGate = totalGates > 0 ? 50 / totalGates : 50;
-		let gateIndex = 0;
-
 		// go through all gate names and call the corresponding gate handler
 		for (const gateName of gateNames) {
 			if (!gateName) {
@@ -247,20 +240,17 @@ export class HypedditDownloader {
 				);
 			}
 			const gateLabel = gateLabels[gateName] || gateName;
-			const currentProgress = 30 + gateIndex * progressPerGate;
 
 			console.log(`Now handling ${gateName} gate...`);
 			this.emitProgress(
 				'handling_gates',
 				`Handling ${gateLabel} gate...`,
-				currentProgress,
 				{ currentGate: gateName },
 			);
 
 			await gate(page);
 
 			console.log(`✓ ${gateName} gate handled successfully`);
-			gateIndex++;
 			await timeout(1_000);
 		}
 
@@ -487,53 +477,40 @@ export class HypedditDownloader {
 			throw new Error('Download button not found');
 		}
 		console.log('Download button found, waiting for download to start...');
-		this.emitProgress('downloading', 'Preparing download...', 75);
+		this.emitProgress('downloading', 'Preparing download...');
 
 		// ensure downloads directory exists
 		await mkdir('./downloads', { recursive: true });
 
-		// create progress bar (for CLI)
-		const pBar = new SingleBar(
-			{
-				format: '{prefix} {bar} {percentage}%',
-				hideCursor: true,
-			},
-			{
-				// modern preset
-				barCompleteChar: '█',
-				barIncompleteChar: '░',
-				format: Presets.shades_classic.format,
-			},
-		);
+		const spinner = yoctoSpinner({ text: 'Downloading...' }).start();
 
-		pBar.start(100, 0, { prefix: 'Downloading' });
+		try {
+			const [download] = await Promise.all([
+				page.waitForEvent('download'),
+				page.click(Selectors.DW_DOWNLOAD_BUTTON),
+			]);
 
-		// click the download button and wait for the download to start
-		const [download] = await Promise.all([
-			page.waitForEvent('download'),
-			page.click(Selectors.DW_DOWNLOAD_BUTTON),
-		]);
+			this.downloadFilename = download.suggestedFilename();
+			console.log('Download started:', this.downloadFilename);
+			spinner.text = `Downloading ${this.downloadFilename}...`;
+			this.emitProgress(
+				'downloading',
+				`Downloading ${this.downloadFilename}...`,
+			);
 
-		this.downloadFilename = download.suggestedFilename();
-		console.log('Download started:', this.downloadFilename);
-		this.emitProgress(
-			'downloading',
-			`Downloading ${this.downloadFilename}...`,
-			80,
-		);
+			if (!this.downloadFilename) {
+				throw new Error('Download started without a suggested filename');
+			}
 
-		if (!this.downloadFilename) {
-			pBar.stop();
-			throw new Error('Download started without a suggested filename');
+			const downloadPath = `./downloads/${this.downloadFilename}`;
+			await download.saveAs(downloadPath);
+
+			console.log('Download completed:', downloadPath);
+			this.emitProgress('downloading', 'Download complete');
+			spinner.success('Download complete');
+		} catch (err) {
+			spinner.error(err instanceof Error ? err.message : 'Download failed');
+			throw err;
 		}
-
-		const downloadPath = `./downloads/${this.downloadFilename}`;
-		await download.saveAs(downloadPath);
-
-		pBar.update(100);
-		pBar.stop();
-
-		console.log('Download completed:', downloadPath);
-		this.emitProgress('downloading', 'Download complete', 85);
 	}
 }

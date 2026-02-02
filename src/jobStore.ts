@@ -24,7 +24,6 @@ class JobStore {
 			progress: {
 				stage: 'pending',
 				message: 'Job created',
-				percent: 0,
 			},
 			downloadFilename: null,
 			outputFilename: null,
@@ -72,7 +71,6 @@ class JobStore {
 		id: string,
 		stage: JobStage,
 		message: string,
-		percent: number,
 		extra?: Partial<JobProgress>,
 	): void {
 		const job = this.jobs.get(id);
@@ -81,7 +79,6 @@ class JobStore {
 		job.progress = {
 			stage,
 			message,
-			percent,
 			...extra,
 		};
 		job.updatedAt = new Date();
@@ -100,7 +97,6 @@ class JobStore {
 		job.progress = {
 			stage: 'error',
 			message: error,
-			percent: 0,
 		};
 		job.updatedAt = new Date();
 

@@ -63,7 +63,6 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 			jobId,
 			'initializing_browser',
 			'Launching browser...',
-			10,
 		);
 
 		hypedditDownloader = new HypedditDownloader({
@@ -73,8 +72,8 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 			headless: true,
 		});
 
-		hypedditDownloader.setProgressCallback((stage, message, percent, extra) => {
-			jobStore.updateProgress(jobId, stage, message, percent, extra);
+		hypedditDownloader.setProgressCallback((stage, message, extra) => {
+			jobStore.updateProgress(jobId, stage, message, extra);
 		});
 
 		await hypedditDownloader.initialize();
@@ -103,7 +102,6 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 			jobId,
 			'processing_audio',
 			'Fetching artwork...',
-			90,
 		);
 
 		if (job.track?.artworkUrl) {
@@ -286,7 +284,6 @@ const server = Bun.serve({
 							message: hypedditUrl
 								? 'Ready to start download'
 								: 'Hypeddit URL not found - manual input required',
-							percent: 10,
 						},
 					});
 
@@ -576,7 +573,6 @@ const server = Bun.serve({
 						jobId,
 						'ready',
 						'Audio processing complete',
-						100,
 					);
 
 					return jsonResponse({

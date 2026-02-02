@@ -21,10 +21,7 @@ interface TrackInfo {
 interface JobProgress {
 	stage: string;
 	message: string;
-	percent: number;
 	currentGate?: string;
-	downloadBytes?: number;
-	totalBytes?: number;
 }
 
 interface JobState {
@@ -63,7 +60,6 @@ export default function App() {
 	const [customArtwork, setCustomArtwork] = useState<File | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const cleanupToastShownRef = useRef(false);
-	const formatPercent = (value?: number) => Math.round(value ?? 0);
 
 	const showCleanupSoundcloudToast = useCallback(() => {
 		toast('Cleanup your SoundCloud account?', {
@@ -512,26 +508,15 @@ export default function App() {
 				{step === 'progress' && (
 					<div className="progress-container animate-slide-up">
 						<div className="progress-stage">
-							<span className="stage-label">{job.progress?.message || 'Initializing...'}</span>
+							<span className="stage-label">
+								{job.progress?.message || 'Initializing...'}
+							</span>
 							{job.progress?.currentGate && (
-								<span className="gate-badge">{job.progress.currentGate.toUpperCase()}</span>
+								<span className="gate-badge">
+									{job.progress.currentGate.toUpperCase()}
+								</span>
 							)}
-						</div>
-						<div className="progress-bar">
-							<div
-								className="progress-fill"
-								style={{ width: `${job.progress?.percent || 0}%` }}
-							/>
-						</div>
-						<div className="progress-stats">
-							<span>{formatPercent(job.progress?.percent)}%</span>
-							{job.progress?.downloadBytes !== undefined &&
-								job.progress?.totalBytes !== undefined && (
-									<span>
-										{(job.progress.downloadBytes / 1024 / 1024).toFixed(1)} /{' '}
-										{(job.progress.totalBytes / 1024 / 1024).toFixed(1)} MB
-									</span>
-								)}
+							<span className="spinner" />
 						</div>
 					</div>
 				)}
