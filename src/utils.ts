@@ -1,8 +1,10 @@
 import { lookpath } from 'find-bin';
-import type { SetCookieParam } from 'playwright';
+import type { BrowserContext } from 'playwright';
 import type { SoundcloudTrack } from 'soundcloud.ts';
 import packageJson from '../package.json' with { type: 'json' };
 import type { LocalCookieData, Metadata } from './types';
+
+type SetCookieParam = Parameters<BrowserContext['addCookies']>[0][number];
 
 export const REPO_URL = packageJson.repository.url;
 
