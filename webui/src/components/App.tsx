@@ -232,10 +232,7 @@ export default function App() {
 				const progress: JobProgress = JSON.parse(event.data);
 				setJob((prev) => ({ ...prev, progress }));
 
-				if (progress.stage === 'downloading' &&
-					(progress.downloadBytes || progress.totalBytes) &&
-					!cleanupToastShownRef.current
-				) {
+				if (progress.stage === 'downloading' && !cleanupToastShownRef.current) {
 					showCleanupSoundcloudToast();
 					cleanupToastShownRef.current = true;
 				}
