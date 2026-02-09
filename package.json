@@ -35,7 +35,7 @@
     "cli-progress": "^3.12.0",
     "execa": "^9.6.1",
     "find-bin": "^1.1.0",
-    "puppeteer": "^24.36.1",
+    "puppeteer": "^24.37.2",
     "soundcloud.ts": "^0.7.1"
   },
   "patchedDependencies": {
