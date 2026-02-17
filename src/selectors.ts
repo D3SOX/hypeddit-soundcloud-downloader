@@ -29,6 +29,9 @@ const IG_STATUS_BUTTON = '#instagram_status .hype-btn-instagram';
 const IG_STATUS_UNDONE_BUTTON = '#instagram_status .hype-btn-instagram.undone';
 const IG_NEXT_BUTTON = '#skipper_ig_next';
 
+// Facebook gate
+const FB_NEXT_BUTTON = '#fbCarouselSocialSection';
+
 // Spotify gate
 const SP_SKIPPER_BUTTON = '#skipper_sp';
 const SP_OPT_IN_SECTION = '#optInSectionSpotify';
@@ -60,6 +63,7 @@ export default {
 	IG_STATUS_BUTTON,
 	IG_STATUS_UNDONE_BUTTON,
 	IG_NEXT_BUTTON,
+	FB_NEXT_BUTTON,
 	SP_SKIPPER_BUTTON,
 	SP_OPT_IN_SECTION,
 	SP_OPT_OUT_OPTION,

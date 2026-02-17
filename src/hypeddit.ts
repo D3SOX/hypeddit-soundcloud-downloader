@@ -212,6 +212,7 @@ export class HypedditDownloader {
 			email: 'Email',
 			sc: 'SoundCloud',
 			ig: 'Instagram',
+			fb: 'Facebook',
 			sp: 'Spotify',
 			dw: 'Download',
 		};
@@ -220,6 +221,7 @@ export class HypedditDownloader {
 			email: (p) => this.handleEmailSlide(p),
 			sc: (p) => this.handleSoundcloudSlide(p),
 			ig: (p) => this.handleInstagramSlide(p),
+			fb: (p) => this.handleFacebookSlide(p),
 			sp: (p) => this.handleSpotifySlide(p),
 			dw: (p) => this.handleDownloadSlide(p),
 		};
@@ -404,6 +406,11 @@ export class HypedditDownloader {
 		// then we can click next
 		await page.waitForSelector(Selectors.IG_NEXT_BUTTON);
 		await page.click(Selectors.IG_NEXT_BUTTON);
+	}
+
+	private async handleFacebookSlide(page: Page) {
+		await page.waitForSelector(Selectors.FB_NEXT_BUTTON);
+		await page.click(Selectors.FB_NEXT_BUTTON);
 	}
 
 	private async handleSpotifySlide(page: Page) {

@@ -123,6 +123,7 @@ Wait for Astro to be started. It will then tell you the address it's available o
 **Gate Handling**: The tool automatically detects and handles different Hypeddit gates:
    - Email gate: Enters your name and email
    - SoundCloud gate: Posts a comment and authorizes the app
+   - Facebook gate: Clicks the next button (Does not require any action)
    - Instagram gate: Handles Instagram follow requirements (This gets bypassed as it does not actually require a follow)
    - Spotify gate: Authorizes Spotify access
    - Download gate: Triggers the audio download
