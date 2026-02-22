@@ -22,7 +22,7 @@
     "lint:fix": "biome check --fix ./src"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.14",
+    "@biomejs/biome": "^2.4.4",
     "@types/bun": "latest",
     "@types/cli-progress": "^3.11.6",
     "npm-run-all": "^4.1.5"
@@ -31,14 +31,14 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@inquirer/prompts": "^8.2.0",
+    "@inquirer/prompts": "^8.2.1",
     "cli-progress": "^3.12.0",
     "execa": "^9.6.1",
     "find-bin": "^1.1.0",
-    "puppeteer": "^24.37.2",
-    "soundcloud.ts": "^0.7.1"
+    "puppeteer": "^24.37.5",
+    "soundcloud.ts": "^0.7.2"
   },
   "patchedDependencies": {
-    "soundcloud.ts@0.7.1": "patches/soundcloud.ts@0.7.1.patch"
+    "soundcloud.ts@0.7.2": "patches/soundcloud.ts@0.7.2.patch"
   }
 }

@@ -1,8 +1,5 @@
-diff --git a/node_modules/soundcloud.ts/.bun-tag-e376dd500e5f9016 b/.bun-tag-e376dd500e5f9016
-new file mode 100644
-index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/dist/API.d.ts b/dist/API.d.ts
-index fd4b0fb385314a1bce07bf40f821990206c9b4ec..11202bd3ccb9253715f4fb42f066a405cd7d3b56 100644
+index 3fad2ed9f4412d5421b212abdc756a64eff7ce13..c5528171d38dd84a949e14f0d903eece2bba2c2e 100644
 --- a/dist/API.d.ts
 +++ b/dist/API.d.ts
 @@ -15,6 +15,9 @@ export declare class API {
