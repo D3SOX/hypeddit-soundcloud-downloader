@@ -31,7 +31,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@inquirer/prompts": "^8.2.0",
+    "@inquirer/prompts": "^8.2.1",
     "cli-progress": "^3.12.0",
     "execa": "^9.6.1",
     "find-bin": "^1.1.0",
