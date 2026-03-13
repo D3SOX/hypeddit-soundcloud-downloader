@@ -125,6 +125,7 @@ Wait for Astro to be started. It will then tell you the address it's available o
    - SoundCloud gate: Posts a comment and authorizes the app
    - Facebook gate: Clicks the next button (Does not require any action)
    - Instagram gate: Handles Instagram follow requirements (This gets bypassed as it does not actually require a follow)
+   - TikTok gate: Handles TikTok follow requirements (This gets bypassed as it does not actually require a follow)
    - Spotify gate: Authorizes Spotify access
    - Download gate: Triggers the audio download
 
