@@ -36,7 +36,7 @@
     "execa": "^9.6.1",
     "find-bin": "^1.1.0",
     "puppeteer": "^24.39.1",
-    "soundcloud.ts": "^0.7.2"
+    "soundcloud.ts": "^0.7.4"
   },
   "patchedDependencies": {
     "soundcloud.ts@0.7.2": "patches/soundcloud.ts@0.7.2.patch"
