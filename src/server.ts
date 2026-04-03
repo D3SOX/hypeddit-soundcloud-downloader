@@ -107,8 +107,7 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 			90,
 		);
 
-		const artworkFetchUrl =
-			job.track?.artworkUrl || job.track?.user.avatarUrl;
+		const artworkFetchUrl = job.track?.artworkUrl || job.track?.user.avatarUrl;
 		if (artworkFetchUrl) {
 			const artwork = await soundcloudClient.fetchArtwork(artworkFetchUrl);
 			jobStore.update(jobId, {

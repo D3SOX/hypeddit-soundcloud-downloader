@@ -46,9 +46,7 @@ export class SoundcloudClient {
 		if (track.artwork_url) {
 			return track.artwork_url;
 		}
-		console.log(
-			"Track has no artwork, falling back to uploader's avatar...",
-		);
+		console.log("Track has no artwork, falling back to uploader's avatar...");
 		return track.user.avatar_url;
 	}
 
