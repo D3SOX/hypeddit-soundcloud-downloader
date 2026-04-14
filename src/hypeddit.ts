@@ -267,7 +267,7 @@ export class HypedditDownloader {
 				document.querySelectorAll<HTMLDivElement>(allStepsDivsSelector),
 			).map((div) => div.classList.item(0));
 		}, Selectors.ALL_STEPS_CHILD_DIVS);
-		console.log('Hypeddit raw gates found', rawGateNames);
+		console.log('Hypeddit gates found', rawGateNames);
 
 		const normalizedGates = rawGateNames.flatMap((rawGateName) => {
 			if (!rawGateName) {
@@ -284,11 +284,8 @@ export class HypedditDownloader {
 			return [{ gateName: preferredGate, candidates }];
 		});
 
-		const gateNames = normalizedGates.map((gate) => gate.gateName);
-		console.log('Hypeddit normalized gates', gateNames);
-
 		// Calculate progress per gate (from 30% to 80%)
-		const totalGates = gateNames.filter(Boolean).length;
+		const totalGates = normalizedGates.length;
 		const progressPerGate = totalGates > 0 ? 50 / totalGates : 50;
 		let gateIndex = 0;
 
@@ -368,7 +365,7 @@ export class HypedditDownloader {
 		if (scCommentText) {
 			// if it exists, we need to enter a comment
 			await page.type(Selectors.SC_COMMENT_TEXT_INPUT, this.config.comment);
-			await timeout(500);
+			await timeout(750);
 		}
 
 		// then we can click next
