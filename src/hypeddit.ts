@@ -22,6 +22,7 @@ export class HypedditDownloader {
 		sc: 3,
 		ig: 2,
 		tk: 2,
+		yt: 2,
 		fb: 2,
 		sp: 3,
 	};
@@ -239,6 +240,7 @@ export class HypedditDownloader {
 			sc: 'SoundCloud',
 			ig: 'Instagram',
 			tk: 'TikTok',
+			yt: 'YouTube',
 			fb: 'Facebook',
 			sp: 'Spotify',
 			dw: 'Download',
@@ -249,6 +251,7 @@ export class HypedditDownloader {
 			sc: (p) => this.handleSoundcloudSlide(p),
 			ig: (p) => this.handleInstagramSlide(p),
 			tk: (p) => this.handleTiktokSlide(p),
+			yt: (p) => this.handleYoutubeSlide(p),
 			fb: (p) => this.handleFacebookSlide(p),
 			sp: (p) => this.handleSpotifySlide(p),
 			dw: (p) => this.handleDownloadSlide(p),
@@ -500,6 +503,65 @@ export class HypedditDownloader {
 		// then we can click next
 		await page.waitForSelector(Selectors.TK_NEXT_BUTTON);
 		await page.click(Selectors.TK_NEXT_BUTTON);
+	}
+
+	private async handleYoutubeSlide(page: Page) {
+		// check if #skipper_yt exists, if yes we can just click it to skip this step
+		const skipperYt = await page.evaluate((skipperYtSelector) => {
+			return document.querySelector(skipperYtSelector) !== null;
+		}, Selectors.YT_SKIPPER_BUTTON);
+		if (skipperYt) {
+			console.log('YouTube gate can be skipped for this post. Skipping...');
+			await page.click(Selectors.YT_SKIPPER_BUTTON);
+			return;
+		}
+
+		await page.waitForSelector(Selectors.YT_STATUS_BUTTON);
+		// then we need to click each button with class .hype-btn-youtube that is not done
+		// loop until there are no more buttons with the undone class
+		while (true) {
+			// try to find a button that's not done
+			const button = await page.$(Selectors.YT_STATUS_UNDONE_BUTTON);
+			if (!button) {
+				break;
+			}
+
+			await page.click(Selectors.YT_STATUS_UNDONE_BUTTON);
+
+			// wait for the YouTube window to appear (with timeout)
+			let youtubeWindow: Page | undefined;
+			const maxWaitTime = 5000;
+			const startTime = Date.now();
+			while (!youtubeWindow && Date.now() - startTime < maxWaitTime) {
+				const pages = await this.browser.pages(true);
+				youtubeWindow = pages.find((window) =>
+					window.url().includes('youtube.com'),
+				);
+				if (!youtubeWindow) {
+					await timeout(200);
+				}
+			}
+
+			if (!youtubeWindow) {
+				throw new Error('YouTube window not found after clicking button');
+			}
+			await youtubeWindow.close();
+
+			// wait for the page to update after closing the window
+			// the button should get the done class instead of undone
+			await timeout(1_000);
+
+			// wait for network to be idle to ensure DOM has updated
+			try {
+				await page.waitForNetworkIdle({ timeout: 3_000 });
+			} catch {
+				// ignore timeout
+			}
+		}
+
+		// then we can click next
+		await page.waitForSelector(Selectors.YT_NEXT_BUTTON);
+		await page.click(Selectors.YT_NEXT_BUTTON);
 	}
 
 	private async handleFacebookSlide(page: Page) {
