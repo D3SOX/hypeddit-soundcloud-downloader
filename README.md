@@ -121,7 +121,7 @@ There is now also an experimental (vibe-coded) web UI for the tool. You can star
 bun webui
 ```
 
-Wait for Astro to be started. It will then tell you the address it's available on, most likely `http://localhost:4321`.
+Wait for Astro to be started. It will then tell you the address it's available on, most likely [`http://localhost:4321`](http://localhost:4321).
 
 If it's the first time you're running it you will need to initialize the logins by clicking the button in the footer.
 
