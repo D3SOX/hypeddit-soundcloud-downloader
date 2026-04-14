@@ -290,11 +290,7 @@ export class HypedditDownloader {
 		let gateIndex = 0;
 
 		// go through all gate names and call the corresponding gate handler
-		for (const gate of normalizedGates) {
-			const { gateName, candidates } = gate;
-			if (!gateName) {
-				continue;
-			}
+		for (const { gateName, candidates } of normalizedGates) {
 			const gateDefinition = this.getGateDefinition(gateName);
 			if (!gateDefinition) {
 				throw new Error(
