@@ -11,24 +11,76 @@ export type ProgressCallback = (
 	extra?: Partial<JobProgress>,
 ) => void;
 
+interface GateDefinition {
+	name: string;
+	label: string;
+	difficulty: number;
+	handler: (page: Page) => Promise<void>;
+}
+
 export class HypedditDownloader {
 	private browser!: Browser; // null-asserted because it is initialized async and every call to it comes logically after the init
 	private downloadFilename: string | null = null;
 	private config: HypedditConfig;
 	private spotifyCookiesExists = false;
 	private progressCallback: ProgressCallback | null = null;
-	private readonly gateDifficulty: Record<string, number> = {
-		email: 1,
-		sc: 3,
-		ig: 2,
-		tk: 2,
-		yt: 2,
-		fb: 2,
-		sp: 3,
-	};
+	private readonly gateDefinitions: GateDefinition[] = [
+		{
+			name: 'email',
+			label: 'Email',
+			difficulty: 1,
+			handler: (p) => this.handleEmailSlide(p),
+		},
+		{
+			name: 'sc',
+			label: 'SoundCloud',
+			difficulty: 3,
+			handler: (p) => this.handleSoundcloudSlide(p),
+		},
+		{
+			name: 'ig',
+			label: 'Instagram',
+			difficulty: 2,
+			handler: (p) => this.handleInstagramSlide(p),
+		},
+		{
+			name: 'tk',
+			label: 'TikTok',
+			difficulty: 2,
+			handler: (p) => this.handleTiktokSlide(p),
+		},
+		{
+			name: 'yt',
+			label: 'YouTube',
+			difficulty: 2,
+			handler: (p) => this.handleYoutubeSlide(p),
+		},
+		{
+			name: 'fb',
+			label: 'Facebook',
+			difficulty: 2,
+			handler: (p) => this.handleFacebookSlide(p),
+		},
+		{
+			name: 'sp',
+			label: 'Spotify',
+			difficulty: 3,
+			handler: (p) => this.handleSpotifySlide(p),
+		},
+		{
+			name: 'dw',
+			label: 'Download',
+			difficulty: 0,
+			handler: (p) => this.handleDownloadSlide(p),
+		},
+	];
 
 	constructor(config: HypedditConfig) {
 		this.config = config;
+	}
+
+	private getGateDefinition(gateName: string) {
+		return this.gateDefinitions.find((gate) => gate.name === gateName);
 	}
 
 	setProgressCallback(callback: ProgressCallback): void {
@@ -235,28 +287,6 @@ export class HypedditDownloader {
 		const gateNames = normalizedGates.map((gate) => gate.gateName);
 		console.log('Hypeddit normalized gates', gateNames);
 
-		const gateLabels: Record<string, string> = {
-			email: 'Email',
-			sc: 'SoundCloud',
-			ig: 'Instagram',
-			tk: 'TikTok',
-			yt: 'YouTube',
-			fb: 'Facebook',
-			sp: 'Spotify',
-			dw: 'Download',
-		};
-
-		const gates: Record<string, (page: Page) => Promise<void>> = {
-			email: (p) => this.handleEmailSlide(p),
-			sc: (p) => this.handleSoundcloudSlide(p),
-			ig: (p) => this.handleInstagramSlide(p),
-			tk: (p) => this.handleTiktokSlide(p),
-			yt: (p) => this.handleYoutubeSlide(p),
-			fb: (p) => this.handleFacebookSlide(p),
-			sp: (p) => this.handleSpotifySlide(p),
-			dw: (p) => this.handleDownloadSlide(p),
-		};
-
 		// Calculate progress per gate (from 30% to 80%)
 		const totalGates = gateNames.filter(Boolean).length;
 		const progressPerGate = totalGates > 0 ? 50 / totalGates : 50;
@@ -268,8 +298,8 @@ export class HypedditDownloader {
 			if (!gateName) {
 				continue;
 			}
-			const gateHandler = gates[gateName];
-			if (!gateHandler) {
+			const gateDefinition = this.getGateDefinition(gateName);
+			if (!gateDefinition) {
 				throw new Error(
 					`No handler found for gate ${gateName}. Please create an issue about this on ${REPO_URL}/issues`,
 				);
@@ -279,7 +309,8 @@ export class HypedditDownloader {
 				await this.selectOrGate(page, candidates, gateName);
 			}
 
-			const gateLabel = gateLabels[gateName] || gateName;
+			const { label: gateLabel, handler: gateHandler } = gateDefinition;
+
 			const currentProgress = 30 + gateIndex * progressPerGate;
 
 			console.log(`Now handling ${gateName} gate...`);
@@ -753,8 +784,8 @@ export class HypedditDownloader {
 		if (!candidates.length)
 			throw new Error('No preferred gate could be selected from OR gate group');
 		return candidates.reduce((best, curr) =>
-			(this.gateDifficulty[curr] ?? Number.MAX_SAFE_INTEGER) <
-			(this.gateDifficulty[best] ?? Number.MAX_SAFE_INTEGER)
+			(this.getGateDefinition(curr)?.difficulty ?? Number.MAX_SAFE_INTEGER) <
+			(this.getGateDefinition(best)?.difficulty ?? Number.MAX_SAFE_INTEGER)
 				? curr
 				: best,
 		);
