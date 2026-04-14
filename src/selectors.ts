@@ -35,6 +35,12 @@ const TK_STATUS_BUTTON = '#tiktok_status .hype-btn-tiktok';
 const TK_STATUS_UNDONE_BUTTON = '#tiktok_status .hype-btn-tiktok.undone';
 const TK_NEXT_BUTTON = '#skipper_tk_next';
 
+// YouTube gate
+const YT_SKIPPER_BUTTON = '#skipper_yt';
+const YT_STATUS_BUTTON = '#youtube_status .hype-btn-youtube';
+const YT_STATUS_UNDONE_BUTTON = '#youtube_status .hype-btn-youtube.undone';
+const YT_NEXT_BUTTON = '#skipper_yt_next';
+
 // Facebook gate
 const FB_NEXT_BUTTON = '#fbCarouselSocialSection';
 
@@ -73,6 +79,10 @@ export default {
 	TK_STATUS_BUTTON,
 	TK_STATUS_UNDONE_BUTTON,
 	TK_NEXT_BUTTON,
+	YT_SKIPPER_BUTTON,
+	YT_STATUS_BUTTON,
+	YT_STATUS_UNDONE_BUTTON,
+	YT_NEXT_BUTTON,
 	FB_NEXT_BUTTON,
 	SP_SKIPPER_BUTTON,
 	SP_OPT_IN_SECTION,
