@@ -17,6 +17,14 @@ export class HypedditDownloader {
 	private config: HypedditConfig;
 	private spotifyCookiesExists = false;
 	private progressCallback: ProgressCallback | null = null;
+	private readonly gateDifficulty: Record<string, number> = {
+		email: 1,
+		sc: 3,
+		ig: 2,
+		tk: 2,
+		fb: 2,
+		sp: 3,
+	};
 
 	constructor(config: HypedditConfig) {
 		this.config = config;
@@ -201,12 +209,30 @@ export class HypedditDownloader {
 		await page.waitForSelector(Selectors.ALL_STEPS_CONTAINER);
 
 		// fetch gates by getting all divs with their first CSS class inside #all_steps
-		const gateNames = await page.evaluate((allStepsDivsSelector) => {
+		const rawGateNames = await page.evaluate((allStepsDivsSelector) => {
 			return Array.from(
 				document.querySelectorAll<HTMLDivElement>(allStepsDivsSelector),
 			).map((div) => div.classList.item(0));
 		}, Selectors.ALL_STEPS_CHILD_DIVS);
-		console.log('Hypeddit gates found', gateNames);
+		console.log('Hypeddit raw gates found', rawGateNames);
+
+		const normalizedGates = rawGateNames.flatMap((rawGateName) => {
+			if (!rawGateName) {
+				return [];
+			}
+			if (!rawGateName.includes('|')) {
+				return [{ gateName: rawGateName, candidates: [rawGateName] }];
+			}
+			const candidates = rawGateName.split('|').filter(Boolean);
+			const preferredGate = this.pickPreferredGate(candidates);
+			console.log(
+				`Hypeddit OR gate found (${rawGateName}), selected ${preferredGate}`,
+			);
+			return [{ gateName: preferredGate, candidates }];
+		});
+
+		const gateNames = normalizedGates.map((gate) => gate.gateName);
+		console.log('Hypeddit normalized gates', gateNames);
 
 		const gateLabels: Record<string, string> = {
 			email: 'Email',
@@ -234,16 +260,22 @@ export class HypedditDownloader {
 		let gateIndex = 0;
 
 		// go through all gate names and call the corresponding gate handler
-		for (const gateName of gateNames) {
+		for (const gate of normalizedGates) {
+			const { gateName, candidates } = gate;
 			if (!gateName) {
 				continue;
 			}
-			const gate = gates[gateName];
-			if (!gate) {
+			const gateHandler = gates[gateName];
+			if (!gateHandler) {
 				throw new Error(
 					`No handler found for gate ${gateName}. Please create an issue about this on ${REPO_URL}/issues`,
 				);
 			}
+
+			if (candidates.length > 1) {
+				await this.selectOrGate(page, candidates, gateName);
+			}
+
 			const gateLabel = gateLabels[gateName] || gateName;
 			const currentProgress = 30 + gateIndex * progressPerGate;
 
@@ -255,7 +287,7 @@ export class HypedditDownloader {
 				{ currentGate: gateName },
 			);
 
-			await gate(page);
+			await gateHandler(page);
 
 			console.log(`✓ ${gateName} gate handled successfully`);
 			gateIndex++;
@@ -653,5 +685,73 @@ export class HypedditDownloader {
 
 		// clean up CDP session
 		await client.detach();
+	}
+
+	private pickPreferredGate(candidates: string[]): string {
+		if (!candidates.length)
+			throw new Error('No preferred gate could be selected from OR gate group');
+		return candidates.reduce((best, curr) =>
+			(this.gateDifficulty[curr] ?? Number.MAX_SAFE_INTEGER) <
+			(this.gateDifficulty[best] ?? Number.MAX_SAFE_INTEGER)
+				? curr
+				: best,
+		);
+	}
+
+	private async selectOrGate(
+		page: Page,
+		candidates: string[],
+		selectedGate: string,
+	): Promise<void> {
+		// If the selected gate step is already visible, an OR gate was already selected.
+		const selectedStepVisible = await page.evaluate((gate) => {
+			const selectedStep = document.querySelector<HTMLElement>(`#step_${gate}`);
+			if (!selectedStep) {
+				return false;
+			}
+			const style = window.getComputedStyle(selectedStep);
+			return (
+				!selectedStep.classList.contains('hide') &&
+				style.display !== 'none' &&
+				style.visibility !== 'hidden'
+			);
+		}, selectedGate);
+		if (selectedStepVisible) {
+			return;
+		}
+
+		// Wait for OR gate options to become visible before selecting one.
+		await page.waitForFunction(
+			(gates) => {
+				return gates.some((gate: string) => {
+					const gateAnchor = document.querySelector<HTMLElement>(
+						`a[onclick*="jumpGate(this,'${gate}')"]`,
+					);
+					if (!gateAnchor) {
+						return false;
+					}
+					const style = window.getComputedStyle(gateAnchor);
+					return (
+						style.display !== 'none' &&
+						style.visibility !== 'hidden' &&
+						gateAnchor.offsetParent !== null
+					);
+				});
+			},
+			{ timeout: 30_000 },
+			candidates,
+		);
+
+		await page.evaluate((gate) => {
+			const gateAnchor = document.querySelector<HTMLElement>(
+				`a[onclick*="jumpGate(this,'${gate}')"]`,
+			);
+			if (!gateAnchor) {
+				throw new Error(`Could not find OR gate anchor for ${gate}`);
+			}
+			gateAnchor.click();
+		}, selectedGate);
+
+		await timeout(500);
 	}
 }
