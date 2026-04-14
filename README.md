@@ -16,23 +16,26 @@ A simple tool that automates downloading audio from Hypeddit posts and enriches 
 
 - [**Bun**](https://bun.sh) - JavaScript runtime and package manager
 - [**ffmpeg**](https://ffmpeg.org) - Must be installed and available in your `PATH`
-- **SoundCloud account** - It is recommended to create a throwaway account for this because it might get your account banned. Also most Hypeddit downloads require reposts and likes which you might not want to do with your main account
-- **Spotify account** (optional) - Required when a Hypeddit post has an unskippable Spotify gate. I also recommend creating a throwaway account as most Hypeddit downloads require saving playlists/songs to your library which you might not want on your main account.
+- **SoundCloud account** - It is recommended to create a throwaway account for this. Even though there were no reports of accounts getting banned I can't guarantee it. Also most Hypeddit downloads require reposts/likes/follows which you might not want to do with your main account
+- **Spotify account** (optional) - Required when a Hypeddit post has an unskippable Spotify gate. I also recommend creating a throwaway account as most Hypeddit downloads require saving playlists/songs to your library or following artists which you might not want on your main account.
 
 ## Installation
 
 Clone the repository
+
 ```bash
 git clone https://github.com/D3SOX/hypeddit-soundcloud-downloader
 cd hypeddit-soundcloud-downloader
 ```
 
 Install dependencies
+
 ```bash
 bun install
 ```
 
 If you want to use the [Web UI](#web-ui) you also need to install the dependencies for it
+
 ```bash
 cd webui
 bun install
@@ -44,18 +47,9 @@ bun install
 
 Create a `.env` file in the project root by copying the `.env.example` file and filling in the values.
 
-For `HYPEDDIT_NAME` currently everything works (I use just `asd`)
+For `HYPEDDIT_NAME` and `SC_COMMENT` currently everything works (I use just `asd`)
 
 For `HYPEDDIT_EMAIL` you can enter any valid email address (For example grab one from [temp-mail.org](https://temp-mail.org))
-
-### Config file (optional)
-
-Copy the example config:
-```bash
-cp config.example.json config.json
-```
-
-If `config.json` is missing, the tool will prompt for these values every time.
 
 #### Get SoundCloud API Credentials
 
@@ -78,6 +72,7 @@ Install the [EditThisCookie (fork)](https://chromewebstore.google.com/detail/edi
 #### SoundCloud Cookies (Required)
 
 **Steps:**
+
 1. Go to [soundcloud.com](https://soundcloud.com) and log in
 2. Open the extension and click on the export button
 3. Save what was copied to the clipboard to a file called `soundcloud-cookies.json` in the project root
@@ -87,15 +82,25 @@ Install the [EditThisCookie (fork)](https://chromewebstore.google.com/detail/edi
 If you plan to download tracks that require Spotify gates, you'll also need Spotify cookies:
 
 **Steps:**
+
 1. Go to [accounts.spotify.com](https://accounts.spotify.com) and log in
 2. Open the extension and click on the export button
 3. Save what was copied to the clipboard to a file called `spotify-cookies.json` in the project root
+
+### CLI Config file (Optional)
+
+If you want to use the CLI and not be prompted for values every time, you can create a config file by copying the example config and filling in the values:
+
+```bash
+cp config.example.json config.json
+```
 
 ## Usage
 
 ### CLI
 
 Run the tool and follow the prompts.
+
 ```bash
 bun start
 ```
@@ -117,6 +122,8 @@ bun webui
 ```
 
 Wait for Astro to be started. It will then tell you the address it's available on, most likely `http://localhost:4321`.
+
+If it's the first time you're running it you will need to initialize the logins by clicking the button in the footer.
 
 ## How It Works
 
