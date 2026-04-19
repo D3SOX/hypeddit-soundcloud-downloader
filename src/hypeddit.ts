@@ -255,6 +255,28 @@ export class HypedditDownloader {
 		// wait for page to be loaded
 		await page.waitForNetworkIdle({ timeout: 30_000, idleTime: 10 });
 
+		// Some Hypeddit URLs resolve to a smart link "selection" page that lists multiple
+		// platforms (Bandcamp, Hypeddit, etc.). In that case we need to follow the
+		// Hypeddit anchor before we can run the gate flow.
+		const smartLinkAnchor = await page.$(
+			Selectors.HYPEDDIT_SMART_LINK_HYPEDDIT_ANCHOR,
+		);
+		if (smartLinkAnchor) {
+			const hypedditUrl = await smartLinkAnchor.evaluate(
+				(el) => (el as HTMLAnchorElement).href,
+			);
+			console.log(
+				`Smart link selection page detected, following Hypeddit URL: ${hypedditUrl}`,
+			);
+			this.emitProgress(
+				'handling_gates',
+				'Following Hypeddit smart link...',
+				27,
+			);
+			await page.goto(hypedditUrl);
+			await page.waitForNetworkIdle({ timeout: 30_000, idleTime: 10 });
+		}
+
 		await page.waitForSelector(Selectors.DOWNLOAD_PROCESS_BUTTON);
 		// click the download button
 		await page.click(Selectors.DOWNLOAD_PROCESS_BUTTON);

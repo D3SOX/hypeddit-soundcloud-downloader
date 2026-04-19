@@ -7,6 +7,10 @@ const SOUNDCLOUD_CAPTCHA_TRACK = '.sliderText';
 
 const SPOTIFY_ACCOUNT_SETTINGS_LINK = '#account-settings-link';
 
+// Hypeddit smart link selection page (shown when the URL is a multi-platform smart link)
+const HYPEDDIT_SMART_LINK_SECTION = '.hype-smart-link-list-section';
+const HYPEDDIT_SMART_LINK_HYPEDDIT_ANCHOR = `${HYPEDDIT_SMART_LINK_SECTION} a.smartlink-click-button[data-type="hypeddit"]`;
+
 // Hypeddit gate fetching
 const DOWNLOAD_PROCESS_BUTTON = '#downloadProcess';
 const ALL_STEPS_CONTAINER = '#all_steps';
@@ -61,6 +65,8 @@ export default {
 	SOUNDCLOUD_CAPTCHA_SLIDER,
 	SOUNDCLOUD_CAPTCHA_TRACK,
 	SPOTIFY_ACCOUNT_SETTINGS_LINK,
+	HYPEDDIT_SMART_LINK_SECTION,
+	HYPEDDIT_SMART_LINK_HYPEDDIT_ANCHOR,
 	DOWNLOAD_PROCESS_BUTTON,
 	ALL_STEPS_CONTAINER,
 	ALL_STEPS_CHILD_DIVS,
