@@ -14,6 +14,7 @@
 	"license": "GPL-3.0-or-later",
 	"scripts": {
 		"start": "bun run .",
+		"manage-acc": "bun run ./manage-acc.ts",
 		"start:server": "bun run ./src/server.ts",
 		"dev:server": "bun --watch ./src/server.ts",
 		"dev:webui": "cd webui && bun run dev",
@@ -22,7 +23,7 @@
 		"lint:fix": "biome check --fix ./src"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.4.14",
+		"@biomejs/biome": "^2.4.15",
 		"@types/bun": "latest",
 		"@types/cli-progress": "^3.11.6"
 	},
@@ -30,11 +31,11 @@
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
-		"@inquirer/prompts": "^8.4.2",
+		"@inquirer/prompts": "^8.5.0",
 		"cli-progress": "^3.12.0",
 		"execa": "^9.6.1",
 		"find-bin": "^1.1.0",
-		"puppeteer": "^24.42.0",
+		"puppeteer": "^25.0.4",
 		"soundcloud.ts": "^0.7.4"
 	},
 	"patchedDependencies": {
