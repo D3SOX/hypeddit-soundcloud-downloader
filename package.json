@@ -23,7 +23,7 @@
 		"lint:fix": "biome check --fix ./src"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.5.0",
+		"@biomejs/biome": "^2.5.3",
 		"@types/bun": "latest",
 		"@types/cli-progress": "^3.11.6"
 	},
@@ -35,7 +35,7 @@
 		"cli-progress": "^3.12.0",
 		"execa": "^9.6.1",
 		"find-bin": "^1.1.0",
-		"puppeteer": "^25.1.0",
+		"puppeteer": "^25.3.0",
 		"soundcloud.ts": "^0.7.4"
 	},
 	"patchedDependencies": {
