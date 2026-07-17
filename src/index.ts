@@ -86,9 +86,11 @@ try {
 	// repost buttons) can be satisfied with plain HTTP, skipping the browser.
 	const httpDownloader = new HypedditHttpDownloader(hypedditConfig);
 	let downloadFilename = await httpDownloader.tryDownload(hypedditUrl);
+	let usedBrowser = false;
 
 	// Fall back to the browser for gates that need real verification (Spotify, ...).
 	if (!downloadFilename) {
+		usedBrowser = true;
 		const hypedditDownloader = new HypedditDownloader(hypedditConfig);
 		await hypedditDownloader.initialize();
 
@@ -104,12 +106,17 @@ try {
 		await hypedditDownloader.close();
 	}
 
-	if (config) {
-		if (config.cleanupSoundCloudAccount) {
-			await soundcloudClient.cleanup(false);
+	// The browserless path never touches the SoundCloud account (it only declares
+	// the gates as skipped to Hypeddit), so cleanup is only relevant when the
+	// browser flow actually ran.
+	if (usedBrowser) {
+		if (config) {
+			if (config.cleanupSoundCloudAccount) {
+				await soundcloudClient.cleanup(false);
+			}
+		} else {
+			await soundcloudClient.cleanup();
 		}
-	} else {
-		await soundcloudClient.cleanup();
 	}
 
 	if (downloadFilename) {
