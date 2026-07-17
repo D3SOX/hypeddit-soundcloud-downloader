@@ -5,6 +5,7 @@ A simple tool that automates downloading audio from Hypeddit posts and enriches 
 ## Features
 
 - 🎵 Automatically download audio from Hypeddit posts
+- ⚡ Browserless fast path that skips the browser for gates that don't need real verification (see [How It Works](#how-it-works))
 - 🔄 Handles multiple gate types (see [How It Works](#how-it-works))
 - 📝 Fetches metadata from the provided SoundCloud link
 - 🎨 Manual metadata correction before finalizing
@@ -127,10 +128,12 @@ If it's the first time you're running it you will need to initialize the logins 
 
 ## How It Works
 
-**Gate Handling**: The tool automatically detects and handles different Hypeddit gates:
+**Browserless fast path**: Most Hypeddit gates (email and the social follow/like/comment/repost buttons for SoundCloud, Instagram, TikTok, YouTube and Facebook) are only verified client-side, so the tool first tries to satisfy them with plain HTTP requests and downloads the file directly, without launching a browser. This is much faster and shows live download progress in both the CLI and Web UI. If a post has a gate that needs real verification (e.g. an unskippable Spotify gate), it automatically falls back to the browser-based flow below.
+
+**Gate Handling**: When the browser flow is used, the tool automatically detects and handles different Hypeddit gates:
 
 - Email gate: Enters your name and email
-- SoundCloud gate: Posts a comment and authorizes the app
+- SoundCloud gate: Handles the follow/like/comment/repost buttons (This gets bypassed as Hypeddit does not actually verify the actions). The legacy OAuth "connect" flow is still handled as a fallback
 - Facebook gate: Clicks the next button (Does not require any action)
 - Instagram gate: Handles Instagram follow requirements (This gets bypassed as it does not actually require a follow)
 - TikTok gate: Handles TikTok follow requirements (This gets bypassed as it does not actually require a follow)
