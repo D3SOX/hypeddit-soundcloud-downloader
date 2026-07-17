@@ -2,6 +2,7 @@ import { confirm, input } from '@inquirer/prompts';
 import { AudioProcessor } from './audioProcessor';
 import { loadConfig, saveConfig } from './config';
 import { HypedditDownloader } from './hypeddit';
+import { HypedditHttpDownloader } from './hypedditHttp';
 import { SoundcloudClient } from './soundcloud';
 import { getFfmpegBin, getFfprobeBin, validateSoundcloudUrl } from './utils';
 
@@ -74,24 +75,34 @@ try {
 				default: false,
 			});
 
-	const hypedditDownloader = new HypedditDownloader({
+	const hypedditConfig = {
 		name: HYPEDDIT_NAME,
 		email: HYPEDDIT_EMAIL,
 		comment: SC_COMMENT,
 		headless,
-	});
-	await hypedditDownloader.initialize();
+	};
 
-	if (initializeLogins) {
-		await hypedditDownloader.prepareLogins();
-		if (config) {
-			await saveConfig({ ...config, initializeLogins: false });
-			console.log('✓ Updated config.json: initializeLogins set to false');
+	// Fast path: gates that are purely client-side (email + social follow/like/
+	// repost buttons) can be satisfied with plain HTTP, skipping the browser.
+	const httpDownloader = new HypedditHttpDownloader(hypedditConfig);
+	let downloadFilename = await httpDownloader.tryDownload(hypedditUrl);
+
+	// Fall back to the browser for gates that need real verification (Spotify, ...).
+	if (!downloadFilename) {
+		const hypedditDownloader = new HypedditDownloader(hypedditConfig);
+		await hypedditDownloader.initialize();
+
+		if (initializeLogins) {
+			await hypedditDownloader.prepareLogins();
+			if (config) {
+				await saveConfig({ ...config, initializeLogins: false });
+				console.log('✓ Updated config.json: initializeLogins set to false');
+			}
 		}
-	}
 
-	const downloadFilename = await hypedditDownloader.downloadAudio(hypedditUrl);
-	await hypedditDownloader.close();
+		downloadFilename = await hypedditDownloader.downloadAudio(hypedditUrl);
+		await hypedditDownloader.close();
+	}
 
 	if (config) {
 		if (config.cleanupSoundCloudAccount) {

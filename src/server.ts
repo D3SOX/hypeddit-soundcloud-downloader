@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import type { SoundcloudTrack } from 'soundcloud.ts';
 import { AudioProcessor } from './audioProcessor';
 import { HypedditDownloader } from './hypeddit';
+import { HypedditHttpDownloader } from './hypedditHttp';
 import { jobStore } from './jobStore';
 import { SoundcloudClient } from './soundcloud';
 import type { Job, Metadata } from './types';
@@ -60,38 +61,65 @@ async function runDownloadProcess(jobId: string): Promise<void> {
 	if (!job?.hypedditUrl) return;
 
 	try {
-		jobStore.updateProgress(
-			jobId,
-			'initializing_browser',
-			'Launching browser...',
-			10,
-		);
+		const emitProgress = (
+			stage: Job['progress']['stage'],
+			message: string,
+			percent: number,
+			extra?: Partial<Job['progress']>,
+		) => jobStore.updateProgress(jobId, stage, message, percent, extra);
 
-		hypedditDownloader = new HypedditDownloader({
-			name: HYPEDDIT_NAME,
-			email: HYPEDDIT_EMAIL,
-			comment: SC_COMMENT,
-			headless: true,
-		});
-
-		hypedditDownloader.setProgressCallback((stage, message, percent, extra) => {
-			jobStore.updateProgress(jobId, stage, message, percent, extra);
-		});
-
-		await hypedditDownloader.initialize();
-
+		// Fast path: gates that are purely client-side (email + social follow/like/
+		// repost buttons) can be satisfied with plain HTTP, skipping the browser.
 		jobStore.updateProgress(
 			jobId,
 			'handling_gates',
-			'Processing Hypeddit gates...',
-			25,
+			'Trying browserless download...',
+			15,
 		);
+		const httpDownloader = new HypedditHttpDownloader(
+			{
+				name: HYPEDDIT_NAME,
+				email: HYPEDDIT_EMAIL,
+				comment: SC_COMMENT,
+				headless: true,
+			},
+			emitProgress,
+		);
+		let downloadFilename = await httpDownloader.tryDownload(job.hypedditUrl);
 
-		const downloadFilename = await hypedditDownloader.downloadAudio(
-			job.hypedditUrl,
-		);
-		await hypedditDownloader.close();
-		hypedditDownloader = null;
+		// Fall back to the browser for gates that need real verification (Spotify, ...).
+		if (!downloadFilename) {
+			jobStore.updateProgress(
+				jobId,
+				'initializing_browser',
+				'Launching browser...',
+				10,
+			);
+
+			hypedditDownloader = new HypedditDownloader({
+				name: HYPEDDIT_NAME,
+				email: HYPEDDIT_EMAIL,
+				comment: SC_COMMENT,
+				headless: true,
+			});
+
+			hypedditDownloader.setProgressCallback(emitProgress);
+
+			await hypedditDownloader.initialize();
+
+			jobStore.updateProgress(
+				jobId,
+				'handling_gates',
+				'Processing Hypeddit gates...',
+				25,
+			);
+
+			downloadFilename = await hypedditDownloader.downloadAudio(
+				job.hypedditUrl,
+			);
+			await hypedditDownloader.close();
+			hypedditDownloader = null;
+		}
 
 		if (!downloadFilename) {
 			jobStore.setError(jobId, 'Download failed - no file received');
@@ -237,7 +265,10 @@ const server = Bun.serve({
 			POST: async (req) => {
 				try {
 					const body = await req.json();
-					const { soundcloudUrl } = body as { soundcloudUrl?: string };
+					const { soundcloudUrl, skipAutomaticHypedditFetch } = body as {
+						soundcloudUrl?: string;
+						skipAutomaticHypedditFetch?: boolean;
+					};
 
 					if (!soundcloudUrl) {
 						return jsonResponse(
@@ -276,7 +307,9 @@ const server = Bun.serve({
 						);
 					}
 
-					const hypedditUrl = extractHypedditUrl(track);
+					const hypedditUrl = skipAutomaticHypedditFetch
+						? null
+						: extractHypedditUrl(track);
 					const defaultMetadata = getDefaultMetadata(track);
 
 					const updatedJob = jobStore.update(job.id, {
@@ -287,7 +320,9 @@ const server = Bun.serve({
 							stage: hypedditUrl ? 'pending' : 'waiting_hypeddit',
 							message: hypedditUrl
 								? 'Ready to start download'
-								: 'Hypeddit URL not found - manual input required',
+								: skipAutomaticHypedditFetch
+									? 'Automatic Hypeddit lookup skipped - manual input required'
+									: 'Hypeddit URL not found - manual input required',
 							percent: 10,
 						},
 					});

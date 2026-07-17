@@ -367,6 +367,74 @@ export class HypedditDownloader {
 		await nextButton.click();
 	}
 
+	// Handles gates that list individual action buttons (follow/like/repost/...)
+	// which each open a popup and mark themselves as done on click. Hypeddit does
+	// not verify the actions were actually performed, so closing the popup is enough.
+	private async handleSocialButtonsSlide(
+		page: Page,
+		platform: string,
+		options: {
+			statusButtonSelector: string;
+			undoneButtonSelector: string;
+			nextButtonSelector: string;
+			windowUrlPart: string;
+		},
+	) {
+		const {
+			statusButtonSelector,
+			undoneButtonSelector,
+			nextButtonSelector,
+			windowUrlPart,
+		} = options;
+
+		await page.waitForSelector(statusButtonSelector);
+		// click each button that is not done yet
+		// loop until there are no more buttons with the undone class
+		while (true) {
+			// try to find a button that's not done
+			const button = await page.$(undoneButtonSelector);
+			if (!button) {
+				break;
+			}
+
+			await page.click(undoneButtonSelector);
+
+			// wait for the popup window to appear (with timeout)
+			let popupWindow: Page | undefined;
+			const maxWaitTime = 5000;
+			const startTime = Date.now();
+			while (!popupWindow && Date.now() - startTime < maxWaitTime) {
+				const pages = await this.browser.pages(true);
+				popupWindow = pages.find(
+					(window) => window !== page && window.url().includes(windowUrlPart),
+				);
+				if (!popupWindow) {
+					await timeout(200);
+				}
+			}
+
+			if (!popupWindow) {
+				throw new Error(`${platform} window not found after clicking button`);
+			}
+			await popupWindow.close();
+
+			// wait for the page to update after closing the window
+			// the button should get the done class instead of undone
+			await timeout(1_000);
+
+			// wait for network to be idle to ensure DOM has updated
+			try {
+				await page.waitForNetworkIdle({ timeout: 3_000 });
+			} catch {
+				// ignore timeout
+			}
+		}
+
+		// then we can click next
+		await page.waitForSelector(nextButtonSelector);
+		await page.click(nextButtonSelector);
+	}
+
 	private async handleSoundcloudSlide(page: Page) {
 		// check if #skipper_sc exists, if yes we can just click it to skip this step
 		const skipperSc = await page.evaluate((skipperScSelector) => {
@@ -378,6 +446,21 @@ export class HypedditDownloader {
 			return;
 		}
 
+		// Hypeddit no longer connects to SoundCloud via OAuth: the gate now lists
+		// individual follow/like/comment/repost buttons that each open a popup and
+		// are marked done on click, just like the Instagram/TikTok gates.
+		const statusButtons = await page.$(Selectors.SC_STATUS_BUTTON);
+		if (statusButtons) {
+			await this.handleSocialButtonsSlide(page, 'SoundCloud', {
+				statusButtonSelector: Selectors.SC_STATUS_BUTTON,
+				undoneButtonSelector: Selectors.SC_STATUS_UNDONE_BUTTON,
+				nextButtonSelector: Selectors.SC_NEXT_BUTTON,
+				windowUrlPart: 'soundcloud.com',
+			});
+			return;
+		}
+
+		// legacy OAuth connect flow
 		// not all hypeddit soundcloud gates have a comment text field, if it does not exist we can skip this
 		const scCommentText = await page.$(Selectors.SC_COMMENT_TEXT_INPUT);
 		if (scCommentText) {
@@ -442,53 +525,12 @@ export class HypedditDownloader {
 			return;
 		}
 
-		await page.waitForSelector(Selectors.IG_STATUS_BUTTON);
-		// then we need to click each button with class .hype-btn-instagram that is not done
-		// loop until there are no more buttons with the undone class
-		while (true) {
-			// try to find a button that's not done
-			const button = await page.$(Selectors.IG_STATUS_UNDONE_BUTTON);
-
-			if (!button) {
-				break;
-			}
-
-			await page.click(Selectors.IG_STATUS_UNDONE_BUTTON);
-
-			// wait for the Instagram window to appear (with timeout)
-			let instagramWindow: Page | undefined;
-			const maxWaitTime = 5000;
-			const startTime = Date.now();
-			while (!instagramWindow && Date.now() - startTime < maxWaitTime) {
-				const pages = await this.browser.pages(true);
-				instagramWindow = pages.find((window) =>
-					window.url().includes('instagram.com'),
-				);
-				if (!instagramWindow) {
-					await timeout(200);
-				}
-			}
-
-			if (!instagramWindow) {
-				throw new Error('Instagram window not found after clicking button');
-			}
-			await instagramWindow.close();
-
-			// wait for the page to update after closing the window
-			// the button should get the done class instead of undone
-			await timeout(1_000);
-
-			// wait for network to be idle to ensure DOM has updated
-			try {
-				await page.waitForNetworkIdle({ timeout: 3_000 });
-			} catch {
-				// ignore timeout
-			}
-		}
-
-		// then we can click next
-		await page.waitForSelector(Selectors.IG_NEXT_BUTTON);
-		await page.click(Selectors.IG_NEXT_BUTTON);
+		await this.handleSocialButtonsSlide(page, 'Instagram', {
+			statusButtonSelector: Selectors.IG_STATUS_BUTTON,
+			undoneButtonSelector: Selectors.IG_STATUS_UNDONE_BUTTON,
+			nextButtonSelector: Selectors.IG_NEXT_BUTTON,
+			windowUrlPart: 'instagram.com',
+		});
 	}
 
 	private async handleTiktokSlide(page: Page) {
@@ -502,53 +544,12 @@ export class HypedditDownloader {
 			return;
 		}
 
-		await page.waitForSelector(Selectors.TK_STATUS_BUTTON);
-		// then we need to click each button with class .hype-btn-tiktok that is not done
-		// loop until there are no more buttons with the undone class
-		while (true) {
-			// try to find a button that's not done
-			const button = await page.$(Selectors.TK_STATUS_UNDONE_BUTTON);
-
-			if (!button) {
-				break;
-			}
-
-			await page.click(Selectors.TK_STATUS_UNDONE_BUTTON);
-
-			// wait for the TikTok window to appear (with timeout)
-			let tiktokWindow: Page | undefined;
-			const maxWaitTime = 5000;
-			const startTime = Date.now();
-			while (!tiktokWindow && Date.now() - startTime < maxWaitTime) {
-				const pages = await this.browser.pages(true);
-				tiktokWindow = pages.find((window) =>
-					window.url().includes('tiktok.com'),
-				);
-				if (!tiktokWindow) {
-					await timeout(200);
-				}
-			}
-
-			if (!tiktokWindow) {
-				throw new Error('TikTok window not found after clicking button');
-			}
-			await tiktokWindow.close();
-
-			// wait for the page to update after closing the window
-			// the button should get the done class instead of undone
-			await timeout(1_000);
-
-			// wait for network to be idle to ensure DOM has updated
-			try {
-				await page.waitForNetworkIdle({ timeout: 3_000 });
-			} catch {
-				// ignore timeout
-			}
-		}
-
-		// then we can click next
-		await page.waitForSelector(Selectors.TK_NEXT_BUTTON);
-		await page.click(Selectors.TK_NEXT_BUTTON);
+		await this.handleSocialButtonsSlide(page, 'TikTok', {
+			statusButtonSelector: Selectors.TK_STATUS_BUTTON,
+			undoneButtonSelector: Selectors.TK_STATUS_UNDONE_BUTTON,
+			nextButtonSelector: Selectors.TK_NEXT_BUTTON,
+			windowUrlPart: 'tiktok.com',
+		});
 	}
 
 	private async handleYoutubeSlide(page: Page) {
@@ -562,52 +563,12 @@ export class HypedditDownloader {
 			return;
 		}
 
-		await page.waitForSelector(Selectors.YT_STATUS_BUTTON);
-		// then we need to click each button with class .hype-btn-youtube that is not done
-		// loop until there are no more buttons with the undone class
-		while (true) {
-			// try to find a button that's not done
-			const button = await page.$(Selectors.YT_STATUS_UNDONE_BUTTON);
-			if (!button) {
-				break;
-			}
-
-			await page.click(Selectors.YT_STATUS_UNDONE_BUTTON);
-
-			// wait for the YouTube window to appear (with timeout)
-			let youtubeWindow: Page | undefined;
-			const maxWaitTime = 5000;
-			const startTime = Date.now();
-			while (!youtubeWindow && Date.now() - startTime < maxWaitTime) {
-				const pages = await this.browser.pages(true);
-				youtubeWindow = pages.find((window) =>
-					window.url().includes('youtube.com'),
-				);
-				if (!youtubeWindow) {
-					await timeout(200);
-				}
-			}
-
-			if (!youtubeWindow) {
-				throw new Error('YouTube window not found after clicking button');
-			}
-			await youtubeWindow.close();
-
-			// wait for the page to update after closing the window
-			// the button should get the done class instead of undone
-			await timeout(1_000);
-
-			// wait for network to be idle to ensure DOM has updated
-			try {
-				await page.waitForNetworkIdle({ timeout: 3_000 });
-			} catch {
-				// ignore timeout
-			}
-		}
-
-		// then we can click next
-		await page.waitForSelector(Selectors.YT_NEXT_BUTTON);
-		await page.click(Selectors.YT_NEXT_BUTTON);
+		await this.handleSocialButtonsSlide(page, 'YouTube', {
+			statusButtonSelector: Selectors.YT_STATUS_BUTTON,
+			undoneButtonSelector: Selectors.YT_STATUS_UNDONE_BUTTON,
+			nextButtonSelector: Selectors.YT_NEXT_BUTTON,
+			windowUrlPart: 'youtube.com',
+		});
 	}
 
 	private async handleFacebookSlide(page: Page) {

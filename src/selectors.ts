@@ -23,6 +23,11 @@ const EMAIL_NEXT_BUTTON = '#email_to_downloads_next';
 
 // SoundCloud gate
 const SC_SKIPPER_BUTTON = '#skipper_sc';
+const SC_STATUS_BUTTON = '#soundcloud_status .hype-btn-soundcloud';
+const SC_STATUS_UNDONE_BUTTON =
+	'#soundcloud_status .hype-btn-soundcloud.undone';
+const SC_NEXT_BUTTON = '#skipper_sc_next';
+// Legacy SoundCloud gate (OAuth connect flow)
 const SC_COMMENT_TEXT_INPUT = '#sc_comment_text';
 const SC_LOGIN_BUTTON = '#login_to_sc';
 const SC_SUBMIT_APPROVAL_BUTTON = '#submit_approval';
@@ -74,6 +79,9 @@ export default {
 	EMAIL_ADDRESS_INPUT,
 	EMAIL_NEXT_BUTTON,
 	SC_SKIPPER_BUTTON,
+	SC_STATUS_BUTTON,
+	SC_STATUS_UNDONE_BUTTON,
+	SC_NEXT_BUTTON,
 	SC_COMMENT_TEXT_INPUT,
 	SC_LOGIN_BUTTON,
 	SC_SUBMIT_APPROVAL_BUTTON,
