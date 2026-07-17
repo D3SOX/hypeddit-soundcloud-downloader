@@ -261,7 +261,7 @@ export class HypedditHttpDownloader {
 						'downloading',
 						`Downloading... ${(receivedBytes / 1024 / 1024).toFixed(1)} / ${(totalBytes / 1024 / 1024).toFixed(1)} MB`,
 						76 + downloadPercent * 8,
-						{ downloadBytes: receivedBytes, totalBytes },
+						{ downloadBytes: receivedBytes, totalBytes, browserless: true },
 					);
 				}
 			}

@@ -43,6 +43,9 @@ export interface JobProgress {
 	currentGate?: string;
 	downloadBytes?: number;
 	totalBytes?: number;
+	// True when the download was handled without a browser. Such downloads never
+	// touch the SoundCloud account, so the UI can skip the cleanup prompt.
+	browserless?: boolean;
 }
 
 export interface Job {

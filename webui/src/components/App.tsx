@@ -25,6 +25,7 @@ interface JobProgress {
 	currentGate?: string;
 	downloadBytes?: number;
 	totalBytes?: number;
+	browserless?: boolean;
 }
 
 interface JobState {
@@ -232,8 +233,11 @@ export default function App() {
 				const progress: JobProgress = JSON.parse(event.data);
 				setJob((prev) => ({ ...prev, progress }));
 
+				// Browserless downloads never touch the SoundCloud account, so there
+				// is nothing to clean up afterwards.
 				if (progress.stage === 'downloading' &&
 					(progress.downloadBytes || progress.totalBytes) &&
+					!progress.browserless &&
 					!cleanupToastShownRef.current
 				) {
 					showCleanupSoundcloudToast();
