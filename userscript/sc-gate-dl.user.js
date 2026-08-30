@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         sc-gate-dl
 // @namespace    https://github.com/D3SOX/sc-gate-dl
-// @version      1.11.17
+// @version      1.11.18
 // @description  Add sc-gate-dl download controls and remember your position in the SoundCloud feed
 // @author       D3SOX
 // @match        https://soundcloud.com/*
 // @match        https://www.soundcloud.com/*
+// @noframes
 // @icon         https://soundcloud.com/favicon.ico
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand

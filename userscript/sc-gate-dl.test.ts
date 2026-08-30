@@ -19,6 +19,12 @@ const source = await Bun.file(
 	new URL('./sc-gate-dl.user.js', import.meta.url),
 ).text();
 
+describe('userscript scope', () => {
+	test('does not register controls inside SoundCloud frames', () => {
+		expect(source).toMatch(/^\/\/ @noframes\s*$/m);
+	});
+});
+
 function extractHelper<T>(
 	startMarker: string,
 	endMarker: string,
