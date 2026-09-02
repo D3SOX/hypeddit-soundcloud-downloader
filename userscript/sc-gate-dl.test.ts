@@ -20,8 +20,33 @@ const source = await Bun.file(
 ).text();
 
 describe('userscript scope', () => {
-	test('does not register controls inside SoundCloud frames', () => {
-		expect(source).toMatch(/^\/\/ @noframes\s*$/m);
+	test('runs controls inside MUI track watch frames', () => {
+		expect(source).not.toMatch(/^\/\/ @noframes\s*$/m);
+		const shouldRunInDocument = extractHelper<
+			(isTopLevel: boolean, pathname: string) => boolean
+		>(
+			'\tfunction shouldRunInDocument(',
+			'\n\n\tif (!shouldRunInDocument(',
+			'shouldRunInDocument',
+		);
+		expect(shouldRunInDocument(false, '/n/reesemusicofficial/kisses')).toBe(
+			true,
+		);
+		expect(shouldRunInDocument(false, '/n/artist/track/s-secret')).toBe(true);
+	});
+
+	test('keeps unrelated frames and frame menu commands disabled', () => {
+		const shouldRunInDocument = extractHelper<
+			(isTopLevel: boolean, pathname: string) => boolean
+		>(
+			'\tfunction shouldRunInDocument(',
+			'\n\n\tif (!shouldRunInDocument(',
+			'shouldRunInDocument',
+		);
+		expect(shouldRunInDocument(true, '/feed')).toBe(true);
+		expect(shouldRunInDocument(false, '/feed')).toBe(false);
+		expect(shouldRunInDocument(false, '/n/artist/sets/playlist')).toBe(false);
+		expect(source).toContain('if (IS_TOP_LEVEL) registerMenuCommands();');
 	});
 });
 

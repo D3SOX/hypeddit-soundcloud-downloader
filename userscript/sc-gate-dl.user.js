@@ -1,12 +1,11 @@
 // ==UserScript==
 // @name         sc-gate-dl
 // @namespace    https://github.com/D3SOX/sc-gate-dl
-// @version      1.11.18
+// @version      1.11.19
 // @description  Add sc-gate-dl download controls and remember your position in the SoundCloud feed
 // @author       D3SOX
 // @match        https://soundcloud.com/*
 // @match        https://www.soundcloud.com/*
-// @noframes
 // @icon         https://soundcloud.com/favicon.ico
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
@@ -26,6 +25,19 @@
 
 (() => {
 	'use strict';
+
+	const IS_TOP_LEVEL = window.self === window.top;
+
+	function shouldRunInDocument(isTopLevel, pathname) {
+		if (isTopLevel) return true;
+		const parts = pathname.split('/').filter(Boolean);
+		if (parts.length !== 3 && parts.length !== 4) return false;
+		if (parts[0]?.toLowerCase() !== 'n') return false;
+		if (parts[2]?.toLowerCase() === 'sets') return false;
+		return parts.length === 3 || /^s-[^/]+$/i.test(parts[3]);
+	}
+
+	if (!shouldRunInDocument(IS_TOP_LEVEL, document.location.pathname)) return;
 
 	const WEBUI_BASE_KEY = 'sc-gate-dl-webui-base';
 	const API_BASE_KEY = 'sc-gate-dl-api-base';
@@ -3228,32 +3240,34 @@ a[${STORE_SERVICE_ATTR}] > button::after {
 
 	ensureStyles();
 	scan();
-	ensureFeedNavigator();
+	if (IS_TOP_LEVEL) ensureFeedNavigator();
 
-	document.addEventListener(
-		'click',
-		(event) => {
-			if (!isFeedPage() || !(event.target instanceof Element)) return;
-			const playControl = event.target.closest(
-				'button.playControl, button.sc-button-play, button.sc-button-pause, .soundTitle__playButton, .sound__coverArt .playButton',
-			);
-			const card = playControl?.closest(FEED_CARD_SELECTOR);
-			const cardUrl = card ? trackUrlFromCard(playControl) : null;
-			const outsidePlaybackSelection = Boolean(
-				!card &&
-					event.target.closest('.playControls, .playbackSoundBadge, .queue'),
-			);
-			feedPlaybackOriginUrl = updateFeedPlaybackOrigin(
-				feedPlaybackOriginUrl,
-				cardUrl,
-				outsidePlaybackSelection,
-			);
-			if (card) {
-				saveFeedCheckpointFromCard(card, cardUrl);
-			}
-		},
-		true,
-	);
+	if (IS_TOP_LEVEL) {
+		document.addEventListener(
+			'click',
+			(event) => {
+				if (!isFeedPage() || !(event.target instanceof Element)) return;
+				const playControl = event.target.closest(
+					'button.playControl, button.sc-button-play, button.sc-button-pause, .soundTitle__playButton, .sound__coverArt .playButton',
+				);
+				const card = playControl?.closest(FEED_CARD_SELECTOR);
+				const cardUrl = card ? trackUrlFromCard(playControl) : null;
+				const outsidePlaybackSelection = Boolean(
+					!card &&
+						event.target.closest('.playControls, .playbackSoundBadge, .queue'),
+				);
+				feedPlaybackOriginUrl = updateFeedPlaybackOrigin(
+					feedPlaybackOriginUrl,
+					cardUrl,
+					outsidePlaybackSelection,
+				);
+				if (card) {
+					saveFeedCheckpointFromCard(card, cardUrl);
+				}
+			},
+			true,
+		);
+	}
 
 	let scanTimer = 0;
 	function scheduleScan() {
@@ -3293,12 +3307,12 @@ a[${STORE_SERVICE_ATTR}] > button::after {
 		if (location.href !== lastHref) {
 			lastHref = location.href;
 			scan();
-			ensureFeedNavigator();
+			if (IS_TOP_LEVEL) ensureFeedNavigator();
 		}
-		recordPlayingFeedTrack();
+		if (IS_TOP_LEVEL) recordPlayingFeedTrack();
 	}, 1000);
 
-	registerMenuCommands();
+	if (IS_TOP_LEVEL) registerMenuCommands();
 
 	console.info(
 		`[sc-gate-dl] ready — Web UI: ${getWebuiBases().join(' → ')} (run \`bun webui\`). Override with localStorage key "${WEBUI_BASE_KEY}" (one address per line).`,
