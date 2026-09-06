@@ -12,15 +12,19 @@ test.each([false, true])(
 		).text();
 		// Exercise the actual completion link and parent notification with the full
 		// userscript, without running a gate or downloading somebody's track.
-		const linkStart = appSource.lastIndexOf(
-			'<a\n',
-			appSource.indexOf("onClick={() => notifyParent('file-download')}"),
+		const onClickIndex = appSource.indexOf(
+			"onClick={() => notifyParent('file-download')}",
 		);
-		const linkEnd = appSource.indexOf('</a>', linkStart) + 4;
-		const notifyStart = appSource.indexOf('function notifyParent(');
-		const notifyEnd = appSource.indexOf('\n/**', notifyStart);
+		expect(onClickIndex).toBeGreaterThan(0);
+		const linkStart = appSource.lastIndexOf('<a\n', onClickIndex);
 		expect(linkStart).toBeGreaterThan(0);
+		const linkClose = appSource.indexOf('</a>', onClickIndex);
+		expect(linkClose).toBeGreaterThan(onClickIndex);
+		const linkEnd = linkClose + 4;
+		const notifyStart = appSource.indexOf('function notifyParent(');
 		expect(notifyStart).toBeGreaterThan(0);
+		const notifyEnd = appSource.indexOf('\n/**', notifyStart);
+		expect(notifyEnd).toBeGreaterThan(notifyStart);
 		const bundle = await Bun.build({
 			entrypoints: ['download-fixture'],
 			target: 'browser',
