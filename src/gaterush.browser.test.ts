@@ -1,7 +1,8 @@
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, spyOn, test } from 'bun:test';
 import type { Browser, Page } from 'puppeteer';
 import { launchAppBrowser } from './browserLaunch';
 import { GaterushDownloader } from './gaterush';
+import Selectors from './selectors';
 
 // Replays the redesigned gate's DOM and delayed step replacement without
 // submitting personal data or performing social actions against live services.
@@ -82,9 +83,23 @@ describe('GateRush redesigned gate', () => {
 		await browser?.close();
 	});
 
-	async function runGate(steps: string[], rejectEmail = false) {
+	async function runGate(
+		steps: string[],
+		rejectEmail = false,
+		missEmailClick = false,
+	) {
 		const context = await browser.createBrowserContext();
 		const page = await context.newPage();
+		const click = page.click.bind(page);
+		if (missEmailClick) {
+			spyOn(page, 'click').mockImplementation(async (selector, options) => {
+				if (selector === Selectors.GATERUSH_EMAIL_SUBMIT) {
+					await page.$eval('#stepStage', (el) => (el as HTMLElement).click());
+					return;
+				}
+				await click(selector, options);
+			});
+		}
 		await page.setRequestInterception(true);
 		page.on('request', (request) => {
 			void request.respond({
@@ -137,5 +152,9 @@ describe('GateRush redesigned gate', () => {
 		await expect(runGate(['email'], true)).rejects.toThrow(
 			'GateRush email step did not complete',
 		);
+	}, 15_000);
+
+	test('submits email when the humanized pointer would miss the button', async () => {
+		await runGate(['email'], false, true);
 	}, 15_000);
 });

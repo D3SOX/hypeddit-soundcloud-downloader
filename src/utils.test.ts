@@ -49,6 +49,7 @@ describe('browser cookie persistence', () => {
 				],
 				cookiePath,
 			);
+			expect((await Bun.file(cookiePath).stat()).mode & 0o777).toBe(0o600);
 			expect(await loadCookies(cookiePath)).toEqual([
 				{
 					name: 'oauth_token',

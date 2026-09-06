@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { rename, rm } from 'node:fs/promises';
+import { rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { lookpath } from 'find-bin';
@@ -145,7 +145,7 @@ export async function writeBrowserCookies(
 	}));
 	const temporary = `${filename}.${crypto.randomUUID()}.tmp`;
 	try {
-		await Bun.write(temporary, `${JSON.stringify(serialized, null, 2)}\n`, {
+		await writeFile(temporary, `${JSON.stringify(serialized, null, 2)}\n`, {
 			mode: 0o600,
 		});
 		await rename(temporary, filename);
