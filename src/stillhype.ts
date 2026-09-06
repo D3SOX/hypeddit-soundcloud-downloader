@@ -830,7 +830,8 @@ export class StillhypeDownloader {
 			});
 			const element = handle.asElement();
 			if (element) {
-				await element.click({ delay: 40 });
+				const button = await element.toElement('button');
+				await button.click({ delay: 40 });
 				await handle.dispose().catch(() => {});
 				return true;
 			}
@@ -1161,7 +1162,11 @@ export class StillhypeDownloader {
 		} finally {
 			pBar.stop();
 			if (!completed) {
-				await writer.end().catch(() => {});
+				try {
+					await writer.end();
+				} catch {
+					// Preserve the download error while cleaning up the partial file.
+				}
 				await rm(target, { force: true }).catch(() => {});
 			}
 		}

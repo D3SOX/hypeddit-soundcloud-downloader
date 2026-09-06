@@ -82,55 +82,77 @@ export class GaterushDownloader {
 		this.emitProgress('handling_gates', 'Navigating to GateRush gate...', 25);
 
 		const page = await this.browser.newPage();
-		await page.setViewport({ width: 1920, height: 1080 });
-		await page.goto(url, { waitUntil: 'domcontentloaded' });
+		this.downloadFilename = null;
 		try {
-			await page.waitForNetworkIdle({ timeout: 15_000, idleTime: 10 });
-		} catch {
-			// continue
+			await page.setViewport({ width: 1920, height: 1080 });
+			await page.goto(url, { waitUntil: 'domcontentloaded' });
+			await page.waitForSelector(Selectors.GATERUSH_STEP);
+			await this.dismissCookieBanner(page);
+
+			while (true) {
+				const next = await page.waitForFunction(
+					(selectors) => {
+						const download = document.querySelector<HTMLButtonElement>(
+							selectors.GATERUSH_DOWNLOAD_BUTTON,
+						);
+						if (download && !download.disabled) return 'download';
+						const step = document.querySelector(selectors.GATERUSH_STEP);
+						if (!step || step.classList.contains('leaving')) return false;
+						if (step.querySelector(selectors.GATERUSH_EMAIL_INPUT))
+							return 'email';
+						if (document.querySelector(selectors.GATERUSH_SC_CONNECT))
+							return 'soundcloud';
+						if (document.querySelector(selectors.GATERUSH_IG_ACCOUNT_BUTTON))
+							return 'instagram';
+						return 'unsupported';
+					},
+					{ timeout: 60_000 },
+					Selectors,
+				);
+				const step = await next.jsonValue();
+				await next.dispose();
+				if (step === 'download') break;
+
+				if (step === 'email') {
+					this.emitProgress(
+						'handling_gates',
+						'Submitting GateRush email...',
+						30,
+						{
+							currentGate: 'email',
+						},
+					);
+					await this.handleEmail(page);
+				} else if (step === 'soundcloud') {
+					this.emitProgress(
+						'handling_gates',
+						'Connecting SoundCloud on GateRush...',
+						45,
+						{ currentGate: 'sc' },
+					);
+					await this.handleSoundcloudConnect(page);
+				} else if (step === 'instagram') {
+					this.emitProgress(
+						'handling_gates',
+						'Handling GateRush Instagram follows...',
+						60,
+						{ currentGate: 'ig' },
+					);
+					await this.handleInstagram(page);
+				} else {
+					const title = await page.$eval(
+						`${Selectors.GATERUSH_STEP} .step-title`,
+						(el) => el.textContent?.trim(),
+					);
+					throw new Error(`Unsupported GateRush step: ${title || 'unknown'}`);
+				}
+			}
+
+			await this.handleDownload(page);
+			return this.downloadFilename;
+		} finally {
+			await page.close().catch(() => {});
 		}
-
-		await this.dismissCookieBanner(page);
-
-		if (await page.$(Selectors.GATERUSH_EMAIL_FORM)) {
-			this.emitProgress('handling_gates', 'Submitting GateRush email...', 30, {
-				currentGate: 'email',
-			});
-			await this.handleEmail(page);
-		}
-
-		if (await page.$(Selectors.GATERUSH_SC_CONNECT)) {
-			this.emitProgress(
-				'handling_gates',
-				'Connecting SoundCloud on GateRush...',
-				45,
-				{ currentGate: 'sc' },
-			);
-			await this.handleSoundcloudConnect(page);
-		}
-
-		if (await page.$(Selectors.GATERUSH_IG_ACCOUNT_BUTTON)) {
-			this.emitProgress(
-				'handling_gates',
-				'Handling GateRush Instagram follows...',
-				60,
-				{ currentGate: 'ig' },
-			);
-			await this.handleInstagram(page);
-		}
-
-		await page.waitForFunction(
-			(selector) => {
-				const btn = document.querySelector<HTMLButtonElement>(selector);
-				return !!btn && !btn.disabled;
-			},
-			{ timeout: 60_000 },
-			Selectors.GATERUSH_DOWNLOAD_BUTTON,
-		);
-
-		await this.handleDownload(page);
-		await page.close();
-		return this.downloadFilename;
 	}
 
 	async close() {
@@ -140,15 +162,21 @@ export class GaterushDownloader {
 	}
 
 	private async dismissCookieBanner(page: Page) {
-		const accepted = await page.evaluate((selector) => {
-			const btn = document.querySelector<HTMLButtonElement>(selector);
-			if (!btn) return false;
-			btn.click();
-			return true;
-		}, Selectors.GATERUSH_COOKIE_ACCEPT);
-		if (accepted) {
-			await timeout(500);
-		}
+		if (!(await page.$(Selectors.GATERUSH_COOKIE_REJECT))) return;
+		const reloads = await page.$eval(
+			'#cookieAdToggle',
+			(el) => (el as HTMLInputElement).checked,
+		);
+		// Rejecting the default advertising consent reloads the gate.
+		await Promise.all([
+			reloads
+				? page.waitForNavigation({ waitUntil: 'domcontentloaded' })
+				: Promise.resolve(),
+			page.$eval(Selectors.GATERUSH_COOKIE_REJECT, (el) =>
+				(el as HTMLButtonElement).click(),
+			),
+		]);
+		await page.waitForSelector(Selectors.GATERUSH_STEP);
 	}
 
 	private async handleEmail(page: Page) {
@@ -194,42 +222,30 @@ export class GaterushDownloader {
 
 		await page.waitForFunction(
 			(selector) => {
-				const step = document.querySelector(
-					`.progress-step[data-action="email"]`,
-				);
-				if (step?.classList.contains('completed')) return true;
 				const btn = document.querySelector<HTMLButtonElement>(selector);
-				return !!btn && btn.textContent === 'SUBMIT' && !btn.disabled;
+				return (
+					!btn?.disabled || btn.closest('.step')?.classList.contains('leaving')
+				);
 			},
 			{ timeout: 30_000 },
 			Selectors.GATERUSH_EMAIL_SUBMIT,
 		);
 
-		const emailDone = await page.evaluate(
-			() =>
-				document
-					.querySelector('.progress-step[data-action="email"]')
-					?.classList.contains('completed') === true,
-		);
-		if (!emailDone) {
-			// SUBMIT returned to idle without completing — likely validation/API error
-			await timeout(1_000);
-			const stillIncomplete = await page.evaluate(
-				() =>
-					document
-						.querySelector('.progress-step[data-action="email"]')
-						?.classList.contains('completed') !== true,
-			);
-			if (stillIncomplete) {
-				throw new Error('GateRush email step did not complete');
-			}
+		const failed = await page.evaluate((selector) => {
+			const btn = document.querySelector(selector);
+			return !!btn && !btn.closest('.step')?.classList.contains('leaving');
+		}, Selectors.GATERUSH_EMAIL_SUBMIT);
+		if (failed) {
+			throw new Error('GateRush email step did not complete');
 		}
+		await page.waitForSelector(Selectors.GATERUSH_EMAIL_INPUT, {
+			hidden: true,
+		});
 	}
 
 	private async handleSoundcloudConnect(page: Page) {
-		const commentForm = await page.$(Selectors.GATERUSH_COMMENT_FORM);
 		const commentInput = await page.$(Selectors.GATERUSH_COMMENT_INPUT);
-		if (commentForm && commentInput) {
+		if (commentInput) {
 			if (!this.config.comment.trim()) {
 				throw new Error(
 					'SC_COMMENT is required for GateRush SoundCloud connect.',
@@ -275,19 +291,10 @@ export class GaterushDownloader {
 			);
 		}
 
-		await page.waitForFunction(
-			() => {
-				const step = document.querySelector(
-					'.progress-step[data-action="soundcloud"]',
-				);
-				if (step?.classList.contains('completed')) return true;
-				const download =
-					document.querySelector<HTMLButtonElement>('#btnDownload');
-				return !!download && !download.disabled;
-			},
-			{ timeout: 90_000 },
-		);
-		await timeout(800);
+		await page.waitForSelector(Selectors.GATERUSH_SC_CONNECT, {
+			hidden: true,
+			timeout: 90_000,
+		});
 	}
 
 	/**
@@ -302,12 +309,12 @@ export class GaterushDownloader {
 		while (Date.now() < deadline) {
 			if (!gatePage.isClosed()) {
 				const gateDone = await gatePage
-					.evaluate(() => {
-						const step = document.querySelector(
-							'.progress-step[data-action="soundcloud"]',
+					.evaluate((selectors) => {
+						const step = document.querySelector(selectors.GATERUSH_STEP);
+						return (
+							!!step && !document.querySelector(selectors.GATERUSH_SC_CONNECT)
 						);
-						return step?.classList.contains('completed') === true;
-					})
+					}, Selectors)
 					.catch(() => false);
 				if (gateDone) {
 					console.log('GateRush: SoundCloud step marked completed.');
@@ -448,7 +455,7 @@ export class GaterushDownloader {
 					document.querySelectorAll<HTMLButtonElement>(selector),
 				);
 				return buttons.findIndex(
-					(btn) => !btn.disabled && !/opened|✓/i.test(btn.textContent || ''),
+					(btn) => !btn.disabled && !btn.classList.contains('done'),
 				);
 			}, Selectors.GATERUSH_IG_ACCOUNT_BUTTON);
 
@@ -466,12 +473,13 @@ export class GaterushDownloader {
 
 			const pagesBefore = new Set(await this.browser.pages(true));
 
-			await page.evaluate(
+			const singleButton = await page.evaluate(
 				(selector, index) => {
 					const buttons = Array.from(
 						document.querySelectorAll<HTMLButtonElement>(selector),
 					);
 					buttons[index]?.click();
+					return buttons[index]?.classList.contains('btn-instagram');
 				},
 				Selectors.GATERUSH_IG_ACCOUNT_BUTTON,
 				nextIndex,
@@ -506,6 +514,7 @@ export class GaterushDownloader {
 				}
 			}
 
+			if (singleButton) break;
 			await timeout(500);
 		}
 
@@ -514,17 +523,10 @@ export class GaterushDownloader {
 		}
 
 		// Wait for IG step completion (server-side gate-step POST)
-		await page.waitForFunction(
-			() => {
-				const step = document.querySelector(
-					'.progress-step[data-action="instagram"]',
-				);
-				if (!step) return true;
-				return step.classList.contains('completed');
-			},
-			{ timeout: 30_000 },
-		);
-		await timeout(500);
+		await page.waitForSelector(Selectors.GATERUSH_IG_ACCOUNT_BUTTON, {
+			hidden: true,
+			timeout: 30_000,
+		});
 	}
 
 	private async handleDownload(page: Page) {
