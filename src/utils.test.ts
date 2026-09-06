@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -49,6 +49,7 @@ describe('browser cookie persistence', () => {
 				],
 				cookiePath,
 			);
+			expect((await stat(cookiePath)).mode & 0o777).toBe(0o600);
 			expect(await loadCookies(cookiePath)).toEqual([
 				{
 					name: 'oauth_token',

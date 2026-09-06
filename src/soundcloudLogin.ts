@@ -1,5 +1,5 @@
-import type { Page } from 'puppeteer';
-import { timeout } from './utils';
+import type { BrowserContext, Page } from 'puppeteer';
+import { timeout, writeBrowserCookies } from './utils';
 
 const SOUNDCLOUD_HOST_RE = /(^|\.)soundcloud\.com$/i;
 const LOGIN_COPY_RE = /sign in or create an account/i;
@@ -47,6 +47,15 @@ type SoundcloudLoginWaitOptions = {
 	timeoutMs?: number;
 };
 
+export async function saveSoundcloudLogin(
+	context: BrowserContext,
+): Promise<void> {
+	const cookies = (await context.cookies()).filter((cookie) =>
+		SOUNDCLOUD_HOST_RE.test(cookie.domain.replace(/^\./, '')),
+	);
+	if (cookies.length > 0) await writeBrowserCookies(cookies);
+}
+
 /** Wait for a user to finish a SoundCloud login in a visible browser. */
 export async function waitForSoundcloudLogin(
 	page: Page,
@@ -60,10 +69,14 @@ export async function waitForSoundcloudLogin(
 	}
 
 	await page.bringToFront().catch(() => {});
+	const context = page.browserContext();
 	options.onWaiting();
 	const deadline = Date.now() + (options.timeoutMs ?? 10 * 60_000);
 	while (Date.now() < deadline) {
-		if (page.isClosed() || !(await isSoundcloudLoginPage(page))) return true;
+		if (page.isClosed() || !(await isSoundcloudLoginPage(page))) {
+			await saveSoundcloudLogin(context);
+			return true;
+		}
 		await timeout(500);
 	}
 

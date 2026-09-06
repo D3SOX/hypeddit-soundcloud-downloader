@@ -5,6 +5,7 @@ import type { ProgressCallback } from './hypeddit';
 import Selectors from './selectors';
 import {
 	isSoundcloudLoginPage,
+	saveSoundcloudLogin,
 	waitForSoundcloudLogin,
 } from './soundcloudLogin';
 import type { HypedditConfig } from './types';
@@ -218,7 +219,10 @@ export class GaterushDownloader {
 			await fillInput(Selectors.GATERUSH_EMAIL_INPUT, this.config.email);
 		}
 
-		await page.click(Selectors.GATERUSH_EMAIL_SUBMIT);
+		// Humanized pointer clicks can miss this button on the redesigned layout.
+		await page.$eval(Selectors.GATERUSH_EMAIL_SUBMIT, (button) =>
+			(button as HTMLButtonElement).click(),
+		);
 
 		await page.waitForFunction(
 			(selector) => {
@@ -302,9 +306,12 @@ export class GaterushDownloader {
 	 * GateRush to mark the SoundCloud step complete. Never force-closes Allow.
 	 */
 	private async completeSoundcloudOauth(gatePage: Page) {
+		const startedAt = Date.now();
 		let deadline = Date.now() + 120_000;
 		let lastLog = 0;
 		let lastAllowAt = 0;
+		let retryAfterLogin = false;
+		let retriedAfterLogin = false;
 
 		while (Date.now() < deadline) {
 			if (!gatePage.isClosed()) {
@@ -317,6 +324,7 @@ export class GaterushDownloader {
 					}, Selectors)
 					.catch(() => false);
 				if (gateDone) {
+					await saveSoundcloudLogin(gatePage.browserContext());
 					console.log('GateRush: SoundCloud step marked completed.');
 					return;
 				}
@@ -334,6 +342,10 @@ export class GaterushDownloader {
 							{ currentGate: 'soundcloud', browserActive: true },
 						),
 				});
+				// GateRush stops watching its popup after 60 seconds, even while
+				// the user is still signing in. Finish that popup before retrying.
+				retryAfterLogin =
+					!retriedAfterLogin && Date.now() - startedAt >= 60_000;
 				deadline = Date.now() + 120_000;
 				break;
 			}
@@ -352,6 +364,27 @@ export class GaterushDownloader {
 						await timeout(2_000);
 						continue;
 					}
+				}
+			}
+
+			if (retryAfterLogin) {
+				const oauthOpen = (await this.browser.pages(true)).some((candidate) => {
+					if (candidate.isClosed() || candidate === gatePage) return false;
+					const url = new URL(candidate.url());
+					return (
+						url.hostname === 'secure.soundcloud.com' ||
+						url.pathname === '/callback/soundcloud'
+					);
+				});
+				if (!oauthOpen) {
+					await gatePage.$eval(Selectors.GATERUSH_SC_CONNECT, (button) =>
+						(button as HTMLButtonElement).click(),
+					);
+					retryAfterLogin = false;
+					retriedAfterLogin = true;
+					lastAllowAt = 0;
+					deadline = Date.now() + 120_000;
+					continue;
 				}
 			}
 
