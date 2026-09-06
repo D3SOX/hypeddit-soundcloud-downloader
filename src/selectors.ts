@@ -92,17 +92,16 @@ const DROPLOUD_DLFOLLOW_SKIP = 'button.dtr-dlfollow-skip';
 const DROPLOUD_DISCLAIMER_CHECK = '.dtr-social-wrap input[type="checkbox"]';
 
 // GateRush gate
-const GATERUSH_COOKIE_ACCEPT = '#acceptAllBtn';
-const GATERUSH_EMAIL_FORM = '#emailForm';
+const GATERUSH_COOKIE_REJECT = '#cookieModal:not([hidden]) #cookieRejectAll';
+const GATERUSH_STEP = '#stepStage .step';
 const GATERUSH_NAME_INPUT = '#nameInput';
 const GATERUSH_EMAIL_INPUT = '#emailInput';
-const GATERUSH_EMAIL_SUBMIT = '#btnSaveEmail';
-const GATERUSH_COMMENT_FORM = '#commentForm';
+const GATERUSH_EMAIL_SUBMIT = '#stepStage .step:has(#emailInput) [data-go]';
 const GATERUSH_COMMENT_INPUT = '#commentInput';
-const GATERUSH_SC_CONNECT = '#btnSoundCloudConnect';
-const GATERUSH_IG_ACCOUNT_BUTTON = '.btnIgAccount';
-const GATERUSH_DOWNLOAD_BUTTON = '#btnDownload';
-const GATERUSH_PROGRESS_STEP = '.progress-step';
+const GATERUSH_SC_CONNECT = '#stepStage .btn-soundcloud[data-go]';
+const GATERUSH_IG_ACCOUNT_BUTTON =
+	'#stepStage .list-btn.svc-instagram, #stepStage .btn-instagram[data-go]';
+const GATERUSH_DOWNLOAD_BUTTON = '#download';
 
 // DownloadGater gate
 const DOWNLOADGATER_FREE_DOWNLOAD = 'button.download-button';
@@ -169,17 +168,15 @@ export default {
 	DROPLOUD_DLFOLLOW_WRAP,
 	DROPLOUD_DLFOLLOW_SKIP,
 	DROPLOUD_DISCLAIMER_CHECK,
-	GATERUSH_COOKIE_ACCEPT,
-	GATERUSH_EMAIL_FORM,
+	GATERUSH_COOKIE_REJECT,
+	GATERUSH_STEP,
 	GATERUSH_NAME_INPUT,
 	GATERUSH_EMAIL_INPUT,
 	GATERUSH_EMAIL_SUBMIT,
-	GATERUSH_COMMENT_FORM,
 	GATERUSH_COMMENT_INPUT,
 	GATERUSH_SC_CONNECT,
 	GATERUSH_IG_ACCOUNT_BUTTON,
 	GATERUSH_DOWNLOAD_BUTTON,
-	GATERUSH_PROGRESS_STEP,
 	DOWNLOADGATER_FREE_DOWNLOAD,
 	DOWNLOADGATER_DOWNLOAD_FILE,
 } as const;

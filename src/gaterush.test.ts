@@ -20,7 +20,7 @@ describe('GaterushDownloader cancellation', () => {
 				events.push('cancel');
 				rejectPending(new Error('Download was canceled'));
 			},
-			browser: {
+			browserLaunch: {
 				close: async () => {
 					events.push('close');
 					browserClosed = true;

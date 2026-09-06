@@ -747,7 +747,9 @@ function wrapRouteHandler(handler: RouteHandler): RouteHandler {
 	return (req) => requestAls.run(req, () => handler(req));
 }
 
-function wrapRoutes<T extends Record<string, unknown>>(routes: T): T {
+function wrapRoutes<Path extends string>(
+	routes: Bun.Serve.Routes<undefined, Path>,
+): Bun.Serve.Routes<undefined, Path> {
 	const wrapped: Record<string, unknown> = {};
 	for (const [path, handler] of Object.entries(routes)) {
 		if (typeof handler === 'function') {
@@ -765,7 +767,7 @@ function wrapRoutes<T extends Record<string, unknown>>(routes: T): T {
 			wrapped[path] = handler;
 		}
 	}
-	return wrapped as T;
+	return wrapped as Bun.Serve.Routes<undefined, Path>;
 }
 
 const server = Bun.serve({

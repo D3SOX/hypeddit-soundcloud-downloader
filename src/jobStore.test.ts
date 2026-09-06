@@ -3,7 +3,7 @@ import { jobStore } from './jobStore';
 
 describe('jobStore Bandcamp track selection', () => {
 	test('resolveBandcampTrackSelection delivers URL to waiter', async () => {
-		const job = jobStore.create('https://soundcloud.com/a/b', 'mp3');
+		const job = jobStore.create('https://soundcloud.com/a/b', 'mp3-320');
 		try {
 			const wait = jobStore.waitForBandcampTrackSelection(job.id);
 			expect(
@@ -19,7 +19,7 @@ describe('jobStore Bandcamp track selection', () => {
 	});
 
 	test('cancel resolves pending wait with null', async () => {
-		const job = jobStore.create('https://soundcloud.com/a/b', 'mp3');
+		const job = jobStore.create('https://soundcloud.com/a/b', 'mp3-320');
 		try {
 			const wait = jobStore.waitForBandcampTrackSelection(job.id);
 			jobStore.cancel(job.id);
@@ -51,14 +51,14 @@ describe('jobStore Bandcamp track selection', () => {
 	});
 
 	test('delete resolves pending wait with null', async () => {
-		const job = jobStore.create('https://soundcloud.com/a/b', 'mp3');
+		const job = jobStore.create('https://soundcloud.com/a/b', 'mp3-320');
 		const wait = jobStore.waitForBandcampTrackSelection(job.id);
 		jobStore.delete(job.id);
 		expect(await wait).toBeNull();
 	});
 
 	test('second wait supersedes first with null', async () => {
-		const job = jobStore.create('https://soundcloud.com/a/b', 'mp3');
+		const job = jobStore.create('https://soundcloud.com/a/b', 'mp3-320');
 		try {
 			const first = jobStore.waitForBandcampTrackSelection(job.id);
 			const second = jobStore.waitForBandcampTrackSelection(job.id);

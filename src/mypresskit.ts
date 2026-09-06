@@ -614,9 +614,7 @@ export class MypresskitDownloader {
 	): Promise<string> {
 		this.emitProgress('handling_gates', 'Preparing MyPressKit download...', 75);
 		const downloadUrl = `https://www.mypresskit.info/api/download-gates/${encodeURIComponent(gateId)}/download?token=${encodeURIComponent(token)}`;
-		const cookies = await page
-			.browserContext()
-			.cookies('https://www.mypresskit.info');
+		const cookies = await page.cookies(downloadUrl);
 		const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
 		await mkdir('./downloads', { recursive: true });
