@@ -377,14 +377,22 @@ export class GaterushDownloader {
 					);
 				});
 				if (!oauthOpen) {
-					await gatePage.$eval(Selectors.GATERUSH_SC_CONNECT, (button) =>
-						(button as HTMLButtonElement).click(),
+					const retried = await gatePage.$$eval(
+						Selectors.GATERUSH_SC_CONNECT,
+						(buttons) => {
+							const button = buttons[0] as HTMLButtonElement | undefined;
+							if (!button) return false;
+							button.click();
+							return true;
+						},
 					);
-					retryAfterLogin = false;
-					retriedAfterLogin = true;
-					lastAllowAt = 0;
-					deadline = Date.now() + 120_000;
-					continue;
+					if (retried) {
+						retryAfterLogin = false;
+						retriedAfterLogin = true;
+						lastAllowAt = 0;
+						deadline = Date.now() + 120_000;
+						continue;
+					}
 				}
 			}
 

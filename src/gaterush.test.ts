@@ -38,48 +38,69 @@ describe('GaterushDownloader cancellation', () => {
 });
 
 describe('GateRush expired OAuth after interactive login', () => {
-	test('reconnects after a slow login closes the expired popup', async () => {
-		let now = 0;
-		const clock = spyOn(Date, 'now').mockImplementation(() => now);
-		let loginChecks = 0;
-		let popupClosed = false;
-		let reconnects = 0;
-		const context = { cookies: async () => [] };
-		const popup = {
-			isClosed: () => popupClosed,
-			url: () => 'https://secure.soundcloud.com/authorize',
-			bringToFront: async () => {
-				now = 61_000;
-			},
-			browserContext: () => context,
-			evaluate: async () => {
-				popupClosed = ++loginChecks >= 3;
-				return {
-					text: popupClosed ? '' : 'Sign in or create an account',
-					hasApproval: false,
-				};
-			},
-		};
-		const gate = {
-			isClosed: () => false,
-			browserContext: () => context,
-			evaluate: async () => reconnects > 0,
-			$eval: async () => {
-				reconnects++;
-			},
-		} as unknown as Page;
-		const downloader = new GaterushDownloader({
-			comment: '',
-			browserMode: 'headed',
-		});
-		Object.assign(downloader, { browser: { pages: async () => [popup] } });
-		try {
-			// biome-ignore lint/complexity/useLiteralKeys: Test the private OAuth loop without exposing it publicly.
-			await downloader['completeSoundcloudOauth'](gate);
-			expect(reconnects).toBe(1);
-			expect(popupClosed).toBeTrue();
-		} finally {
-			clock.mockRestore();
-		}
-	});
+	test.each([false, true])(
+		'handles a slow login with gate already completed: %s',
+		async (completedDuringLogin) => {
+			let now = 0;
+			const clock = spyOn(Date, 'now').mockImplementation(() => now);
+			let loginChecks = 0;
+			let popupClosed = false;
+			let reconnects = 0;
+			let gateCompleted = false;
+			const context = { cookies: async () => [] };
+			const popup = {
+				isClosed: () => popupClosed,
+				url: () => 'https://secure.soundcloud.com/authorize',
+				bringToFront: async () => {
+					now = 61_000;
+				},
+				browserContext: () => context,
+				evaluate: async () => {
+					popupClosed = ++loginChecks >= 3;
+					gateCompleted = popupClosed && completedDuringLogin;
+					return {
+						text: popupClosed ? '' : 'Sign in or create an account',
+						hasApproval: false,
+					};
+				},
+			};
+			const gate = {
+				isClosed: () => false,
+				browserContext: () => context,
+				evaluate: async () => gateCompleted || reconnects > 0,
+				$eval: async () => {
+					if (gateCompleted) throw new Error('Connect button no longer exists');
+					reconnects++;
+				},
+				$$eval: async (
+					_selector: string,
+					callback: (buttons: HTMLButtonElement[]) => boolean,
+				) =>
+					callback(
+						gateCompleted
+							? []
+							: [
+									{
+										click: () => {
+											reconnects++;
+										},
+									} as HTMLButtonElement,
+								],
+					),
+			} as unknown as Page;
+			const downloader = new GaterushDownloader({
+				comment: '',
+				browserMode: 'headed',
+			});
+			Object.assign(downloader, { browser: { pages: async () => [popup] } });
+			try {
+				// biome-ignore lint/complexity/useLiteralKeys: Test the private OAuth loop without exposing it publicly.
+				await downloader['completeSoundcloudOauth'](gate);
+				expect(reconnects).toBe(completedDuringLogin ? 0 : 1);
+				expect(popupClosed).toBeTrue();
+			} finally {
+				clock.mockRestore();
+			}
+		},
+	);
 });
