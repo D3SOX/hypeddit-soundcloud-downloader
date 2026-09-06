@@ -1878,9 +1878,11 @@ export default function App() {
 							{job.outputFilename || job.downloadFilename}
 						</p>
 						<div className="complete-actions">
+							{/* Navigate independently of the panel; the API serves an attachment. */}
 							<a
 								href={`${API_BASE}/api/job/${job.jobId}/file`}
-								download
+								target="_blank"
+								rel="noopener noreferrer"
 								className="btn-primary"
 								onClick={() => notifyParent('file-download')}
 							>
